@@ -74,7 +74,7 @@ class NMI_Blocks_Payment_Method extends AbstractPaymentMethodType {
         
         if (!$gateway) {
             return [
-                'title' => 'AP NMI Payment Gateway',
+                'title' => 'Gain Commerce NMI Payment Gateway for WooCommerce',
                 'description' => '',
                 'supports' => [],
                 'is_available' => false,

@@ -12,8 +12,8 @@ import { getSetting } from '@woocommerce/settings';
 console.log('AP NMI Blocks: Script loading...');
 
 // Get payment method data passed from PHP
-const settings = getSetting('ap_nmi_data', {});
-const defaultLabel = __('AP NMI Payment Gateway', 'gaincommerce-nmi-payment-gateway-for-woocommerce');
+const settings = getSetting('gaincommerce_nmi_data', {});
+const defaultLabel = __('Gain Commerce NMI Payment Gateway for WooCommerce', 'gaincommerce-nmi-payment-gateway-for-woocommerce');
 
 console.log('AP NMI Blocks: Settings loaded', settings);
 
@@ -246,7 +246,7 @@ const Label = () => {
  * Payment method configuration object
  */
 const apNmiPaymentMethod = {
-    name: settings.wc_gateway_id,
+    name: settings.wc_gateway_id || 'gaincommerce_nmi',
     label: <Label />,
     content: <CreditCardForm />,
     edit: <CreditCardForm />,

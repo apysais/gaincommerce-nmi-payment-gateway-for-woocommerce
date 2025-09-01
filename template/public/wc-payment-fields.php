@@ -1,5 +1,7 @@
 
 <?php
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 $description        = isset($args['description']) ? $args['description'] : '';
 $gateway_id         = isset($args['gateway_id']) ? $args['gateway_id'] : '';
 $is_on_test_mode    = isset($args['is_on_test_mode']) ? $args['is_on_test_mode'] : false;

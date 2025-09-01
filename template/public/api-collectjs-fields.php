@@ -1,4 +1,6 @@
 <?php
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 $display_accepted_cards = isset($args['display_accepted_cards']) ? $args['display_accepted_cards'] : '';
 ?>
 <div>
