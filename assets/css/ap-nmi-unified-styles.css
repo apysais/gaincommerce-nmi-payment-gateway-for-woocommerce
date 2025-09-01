@@ -1,0 +1,139 @@
+.ap-nmi-collectjs-container{
+    margin-bottom: 15px;
+}
+
+.ap-nmi-collectjs-container input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #e1e1e1;
+    border-radius: 8px;
+    font-size: 24px;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease;
+}
+
+.ap-nmi-collectjs-container input:focus {
+    outline: none;
+    border-color: #4681f4;
+}
+
+/**
+ * Card Type Restriction Styles
+ */
+
+/* Card type error styling */
+.ap-nmi-card-type-error {
+    margin: 10px 0 !important;
+    padding: 12px 15px !important;
+    background: #e74c3c !important;
+    color: white !important;
+    border-radius: 4px !important;
+    border-left: 4px solid #c0392b !important;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+/* Card type icon container */
+.ap-nmi-card-icons {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    align-items: center;
+}
+
+.ap-nmi-card-icons .card-icon {
+    width: 32px;
+    height: 20px;
+    border-radius: 3px;
+    border: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+    color: #666;
+    background: #f9f9f9;
+    opacity: 0.5;
+    transition: opacity 0.3s ease;
+}
+
+.ap-nmi-card-icons .card-icon.allowed {
+    opacity: 1;
+    background: #fff;
+    border-color: #007cba;
+    color: #007cba;
+}
+
+.ap-nmi-card-icons .card-icon.restricted {
+    opacity: 0.3;
+    background: #f8f8f8;
+    border-color: #ccc;
+    color: #999;
+    position: relative;
+}
+
+.ap-nmi-card-icons .card-icon.restricted::after {
+    content: '✕';
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    font-size: 8px;
+    color: #e74c3c;
+    background: white;
+    border-radius: 50%;
+    width: 12px;
+    height: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #e74c3c;
+}
+
+/* Specific card type icons */
+.card-icon.visa::before { content: 'VISA'; }
+.card-icon.mastercard::before { content: 'MC'; }
+.card-icon.amex::before { content: 'AMEX'; }
+.card-icon.discover::before { content: 'DISC'; }
+.card-icon.diners::before { content: 'DC'; }
+.card-icon.jcb::before { content: 'JCB'; }
+.card-icon.unionpay::before { content: 'UP'; }
+
+/* Card type detection indicator */
+.ap-nmi-card-field.detected-visa { border-left: 3px solid #1a1f71; }
+.ap-nmi-card-field.detected-mastercard { border-left: 3px solid #eb001b; }
+.ap-nmi-card-field.detected-amex { border-left: 3px solid #006fcf; }
+.ap-nmi-card-field.detected-discover { border-left: 3px solid #ff6000; }
+.ap-nmi-card-field.detected-diners { border-left: 3px solid #0079be; }
+.ap-nmi-card-field.detected-jcb { border-left: 3px solid #35519c; }
+.ap-nmi-card-field.detected-unionpay { border-left: 3px solid #e21836; }
+
+/* Disabled state for submit button when card is restricted */
+#place_order.disabled {
+    background-color: #ccc !important;
+    border-color: #ccc !important;
+    color: #666 !important;
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
+}
+
+/* Card restriction info text */
+.ap-nmi-card-restrictions-info {
+    font-size: 12px;
+    color: #666;
+    margin-top: 8px;
+    font-style: italic;
+}
+
+/* Responsive design for card icons */
+@media (max-width: 768px) {
+    .ap-nmi-card-icons {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    
+    .ap-nmi-card-icons .card-icon {
+        width: 28px;
+        height: 18px;
+        font-size: 9px;
+    }
+}

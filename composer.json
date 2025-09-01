@@ -1,0 +1,41 @@
+{
+    "name": "gaincommerce/gaincommerce-nmi-payment-gateway-for-woocommerce",
+    "description": "NMI Payment Gateway for WooCommerce",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "GainCommerce",
+            "homepage": "https://www.gaincommerce.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5",
+        "yoast/phpunit-polyfills": "^1.0",
+        "brain/monkey": "^2.6",
+        "mockery/mockery": "^1.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "APNMIPaymentGateway\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "APNMIPaymentGateway\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "optimize-autoloader": true
+    },
+    "scripts": {
+        "test": "bin/run-wp-tests.sh",
+        "test:filter": "bin/run-wp-tests.sh --filter",
+        "test:coverage": "bin/run-wp-tests.sh --coverage",
+        "install-wp-tests": "bin/install-wp-tests.sh"
+    }
+}
