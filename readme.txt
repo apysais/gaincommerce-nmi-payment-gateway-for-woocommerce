@@ -1,12 +1,12 @@
 === Gain Commerce NMI Payment Gateway for WooCommerce ===
 Contributors: allan.casilum, gaincommerce
-Tags: payment gateway, nmi, woocommerce
+Tags: woocommerce, payment gateway, nmi, credit card
 Requires at least: 6.8
 Tested up to: 6.8
-Stable tag: 1.7.6
+Stable tag: 1.7.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-
+Requires Plugins: woocommerce
 
 Integrates the NMI payment gateway with your WooCommerce store.
 
@@ -29,6 +29,27 @@ This plugin enables merchants to accept payments via NMI directly on their WooCo
 * Supports major credit and debit cards
 * Customizable settings in WooCommerce admin
 
+== Source Code ==
+The source code for the minified JS/CSS is available at:
+https://github.com/apysais/gaincommerce-nmi-payment-gateway-for-woocommerce
+
+Build instructions:
+1. Clone the repository.
+2. Run `npm install` to install dependencies.
+3. Run `npm run build` to generate production assets.
+
+== External Services ==
+This plugin connects to the NMI payment gateway to process transactions.
+
+- **Service:** NMI Payment Gateway
+- **Purpose:** To process credit card payments securely.
+- **Data Sent:** Card details (via tokenization), order details.
+- **Terms of Service:** https://www.nmi.com/legal/terms
+- **Privacy Policy:** https://www.nmi.com/legal/privacy
+
+The plugin also loads the NMI Collect.js script for tokenization:
+- **Script URL:** https://secure.nmi.com/token/Collect.js
+
 == Installation ==
 1. Upload the plugin files to the `/wp-content/plugins/gaincommerce-nmi-payment-gateway-for-woocommerce` directory, or install the plugin through the WordPress plugins screen directly.
 2. Activate the plugin through the 'Plugins' screen in WordPress.
@@ -37,6 +58,9 @@ This plugin enables merchants to accept payments via NMI directly on their WooCo
 == Frequently Asked Questions ==
 = Does this plugin require an NMI account? =
 Yes, you need an active NMI merchant account to use this plugin.
+
+= Does this plugin require WooCommerce? =
+Yes, WooCommerce must be installed and active.
 
 = Is SSL required? =
 Yes, SSL is required to ensure secure payment processing.

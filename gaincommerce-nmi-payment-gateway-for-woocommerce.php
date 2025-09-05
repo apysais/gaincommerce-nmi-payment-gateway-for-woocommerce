@@ -1,17 +1,21 @@
 <?php
 /**
  * Plugin Name: Gain Commerce NMI Payment Gateway for WooCommerce
- * Plugin URI:  https://www.gaincommerce.com
+ * Plugin URI: https://www.gaincommerce.com
  * Description: WooCommerce payment gateway using NMI. Compatible with WooCommerce 8+ (HPOS only) and WordPress 6.8.*
- * Version:     1.7.6
- * Author:      gaincommerce, acasilum
+ * Version: 1.7.7
+ * Requires at least: 6.8
+ * Tested up to: 6.8
+ * Requires PHP: 7.4
+ * Requires Plugins: woocommerce
+ * Author: gaincommerce
+ * Author URI: https://www.gaincommerce.com
  * Text Domain: gaincommerce-nmi-payment-gateway-for-woocommerce
  * Domain Path: /languages
- * Requires PHP: 7.4
- * Requires at least: 6.8
  * WC requires at least: 8.0
- * WC tested up to: 8.0
+ * WC tested up to: 10.1.2
  * License: GPLv2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  */
 
 // Prevent direct access
@@ -20,7 +24,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('AP_NMI_PAYMENT_GATEWAY_VERSION', '1.7.6');
+define('AP_NMI_PAYMENT_GATEWAY_VERSION', '1.7.7');
 define('AP_NMI_PAYMENT_GATEWAY_PLUGIN_FILE', __FILE__);
 define('AP_NMI_PAYMENT_GATEWAY_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('AP_NMI_PAYMENT_GATEWAY_PLUGIN_URL', plugin_dir_url(__FILE__));
