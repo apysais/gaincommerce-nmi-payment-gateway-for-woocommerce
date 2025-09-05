@@ -39,6 +39,7 @@ Build instructions:
 3. Run `npm run build` to generate production assets.
 
 == External Services ==
+
 This plugin connects to the NMI payment gateway to process transactions.
 
 - **Service:** NMI Payment Gateway
@@ -47,8 +48,18 @@ This plugin connects to the NMI payment gateway to process transactions.
 - **Terms of Service:** https://www.nmi.com/legal/terms
 - **Privacy Policy:** https://www.nmi.com/legal/privacy
 
-The plugin also loads the NMI Collect.js script for tokenization:
-- **Script URL:** https://secure.nmi.com/token/Collect.js
+**When Data Is Sent:**  
+Data is transmitted only when a customer submits payment information during checkout.
+
+**Where Data Is Sent:**  
+All sensitive data is sent directly to NMI’s secure servers. Your website does not store or process raw payment data.
+
+The plugin loads the NMI Collect.js script for tokenization:
+- **Script URL:** https://docs.nmi.com/docs/collectjs
+- Collect.js is a PCI-compliant JavaScript library provided by NMI to tokenize payment data in the browser before it reaches your server.
+
+**Conditions:**  
+Data is encrypted and tokenized using Collect.js. Only a single-use token is returned to your site for transaction processing.
 
 == Installation ==
 1. Upload the plugin files to the `/wp-content/plugins/gaincommerce-nmi-payment-gateway-for-woocommerce` directory, or install the plugin through the WordPress plugins screen directly.
@@ -61,6 +72,9 @@ Yes, you need an active NMI merchant account to use this plugin.
 
 = Does this plugin require WooCommerce? =
 Yes, WooCommerce must be installed and active.
+
+= Is this plugin PCI compliant? =
+Yes. It uses NMI's Collect.js to tokenize payment data, ensuring that sensitive information never touches your server.
 
 = Is SSL required? =
 Yes, SSL is required to ensure secure payment processing.
