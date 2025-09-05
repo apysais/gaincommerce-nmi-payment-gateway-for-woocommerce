@@ -80,12 +80,12 @@ function apnmi_get_plugin_details(){
  * @return string
  */
 function apnmi_get_text_domain(): string{
-	$ret = acwa_get_plugin_details();
+	$ret = apnmi_get_plugin_details();
 	return $ret['TextDomain'];
 }
 
 function apnmi_get_plugin_version(): string {
-	$ret = acwa_get_plugin_details();
+	$ret = apnmi_get_plugin_details();
 	return $ret['Version'];
 }
 
