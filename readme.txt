@@ -87,7 +87,7 @@ Yes, SSL is required to ensure secure payment processing.
 = 1.7.6 =
 * Integrate restrict card type in block checkout
 * Integrate restrict card type in legacy checkout
-* Integrate collectjs into wc nami blocks
+* Integrate collectjs into WC checkout blocks
 * Integrate WC blocks
 * Add CollectJS to legacy checkout
 * WooCommerce Legacy checkout work on NMI
