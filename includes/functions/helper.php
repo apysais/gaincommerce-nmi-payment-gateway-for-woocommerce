@@ -76,3 +76,16 @@ function apnmi_render_public_template($template_file, $args = [], $load_once = t
         apnmi_inc_template($get_template, $args, $load_once);
     }
 }
+
+function apnmi_dd($data =[], $label ='', $exit = false)
+{
+    echo '<pre>';
+    if($label) {
+        echo '<strong>' . esc_html($label) . ':</strong> ';
+    }
+    var_dump($data);
+    echo '</pre>';
+    if($exit){
+        exit;
+    }
+}

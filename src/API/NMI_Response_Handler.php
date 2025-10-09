@@ -205,6 +205,7 @@ class NMI_Response_Handler
             'cvv_response' => $this->get_cvv_response($response),
             'avs_response' => $this->get_avs_response($response),
             'customer_vault_id' => $this->get_customer_vault_id($response),
+            'reponse' => $response['response'],
             'raw_response' => $response,
         ];
     }

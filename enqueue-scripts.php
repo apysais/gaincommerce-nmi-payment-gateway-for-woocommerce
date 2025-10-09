@@ -32,7 +32,8 @@ add_action('wp_enqueue_scripts', function(){
 			'nonce' => wp_create_nonce('ap_nmi_nonce'),
 			'is_blocks_checkout' => has_block('woocommerce/checkout') ? 'yes' : 'no',
 			'ap_nmi_gateway_id' => AP_NMI_WC_GATEWAY_ID,
-			'gateway_config' => $gateway_settings
+			'gateway_config' => $gateway_settings,
+			'is_checkout_page' => is_checkout() ? 1 : 0,
 		]
 	);
 

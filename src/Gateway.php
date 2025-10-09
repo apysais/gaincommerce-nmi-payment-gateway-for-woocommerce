@@ -10,6 +10,7 @@ namespace APNMIPaymentGateway;
 use APNMIPaymentGateway\API\NMI_API_Factory;
 use APNMIPaymentGateway\Single_Instance_Trait;
 use APNMIPaymentGateway\WC\NMI_Process_Payment;
+use APNMIPaymentGateway\Parse_Response_Codes;
 use WC_Payment_Gateway;
 use WC_Order;
 class Gateway extends WC_Payment_Gateway
@@ -302,7 +303,7 @@ class Gateway extends WC_Payment_Gateway
         if ($this->is_blocks_checkout()) {
             return;
         }
-
+        
         //enqueue scripts here for legacy checkout only
         wp_enqueue_script('nmi-collectjs');
         wp_enqueue_script('ap-nmi-unified-integration');
@@ -451,6 +452,11 @@ class Gateway extends WC_Payment_Gateway
         $process_payment = new NMI_Process_Payment($order, $gateway_config);
         $response = $process_payment->process_sale();
 
+        Logger::get_instance()->debug(
+            'WC Gateway process_sale return API', 
+            $response
+        );
+
         if ($response['success']) {
 
             // Store transaction ID for later capture
@@ -477,6 +483,7 @@ class Gateway extends WC_Payment_Gateway
                     AP_NMI_WC_META_DATA_AUTH_AMOUNT,
                     $order->get_total()
                 );
+
                 $order->add_meta_data(
                     AP_NMI_WC_META_DATA_TRANSACTION_MODE,
                     'auth'
@@ -535,6 +542,23 @@ class Gateway extends WC_Payment_Gateway
                 
             }
 
+            $avs_code = $response['avs_response'];
+            $avs_response = Parse_Response_Codes::avs_response($avs_code);
+            $cvv_code = $response['cvv_response'];
+            $cvv_response = Parse_Response_Codes::cvv_response($cvv_code);
+  
+            $order->add_order_note(sprintf(
+                __('AVS Response: %1$s, CVV Response: %2$s', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                $avs_response,
+                $cvv_response
+            ));
+
+            $interpret_response_code = Parse_Response_Codes::api_response_code($response['response_code']);
+            $order->add_order_note(sprintf(
+                __('Response Code: %1$s', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                $interpret_response_code
+            ));
+            
             $order->save();
 
             // Empty cart

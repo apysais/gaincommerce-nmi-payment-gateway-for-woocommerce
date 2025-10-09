@@ -11,7 +11,7 @@ use APNMIPaymentGateway\Single_Instance_Trait;
 use APNMIPaymentGateway\API\NMI_Base;
 use APNMIPaymentGateway\Logger;
 use WP_Error;
-
+use WC_Countries;
 /**
  * Summary of NMI_Payment_API
  *
@@ -31,9 +31,8 @@ class NMI_Payment_API extends NMI_Base
     public function process_sale(array $payment_data)
     {
         $this->logger->info('NMI Payment API: Processing sale transaction');
-
         $data = $this->prepare_sale_data($payment_data);
-        
+
         if (is_wp_error($data)) {
             return $data;
         }
@@ -168,6 +167,7 @@ class NMI_Payment_API extends NMI_Base
      */
     protected function prepare_sale_data(array $payment_data)
     {
+        
         $data = [
             'type' => 'sale',
             'amount' => number_format((float) $payment_data['amount'], 2, '.', ''),
@@ -198,12 +198,16 @@ class NMI_Payment_API extends NMI_Base
         $billing_data = $this->prepare_billing_data($payment_data);
         $data = array_merge($data, $billing_data);
 
+        // This need to enable in merchant
+        // $descriptor_data = $this->prepare_descriptor_data($payment_data);
+        // $data = array_merge($data, $descriptor_data);
+
         // Add shipping information if provided
         if (!empty($payment_data['shipping'])) {
             $shipping_data = $this->prepare_shipping_data($payment_data['shipping']);
             $data = array_merge($data, $shipping_data);
         }
-
+        
         // Add order information
         if (!empty($payment_data['orderid'])) {
             $data['orderid'] = sanitize_text_field($payment_data['orderid']);
@@ -217,6 +221,8 @@ class NMI_Payment_API extends NMI_Base
         if (!empty($payment_data['send_receipt']) && $payment_data['send_receipt'] === 'yes') {
             $data['send_email_receipt'] = 'yes';
         }
+        
+        Logger::get_instance()->debug('NMI Payment API: Prepared sale data', $data);
 
         return $data;
     }
@@ -284,6 +290,44 @@ class NMI_Payment_API extends NMI_Base
         return $data;
     }
 
+    protected function prepare_descriptor_data(array $descriptor_data): array
+    {
+        $data = [];
+
+        // Get Address Line 1
+        $address_line_1 = get_option( 'woocommerce_store_address' );
+
+        // Get Address Line 2
+        $address_line_2 = get_option( 'woocommerce_store_address_2' );
+
+        // Get City
+        $city = get_option( 'woocommerce_store_city' );
+
+        // Get State/Province (stored as a code, e.g., 'CA' for California)
+        $state_code = get_option( 'woocommerce_store_state' );
+
+        // Get Postcode/ZIP
+        $postcode = get_option( 'woocommerce_store_postcode' );
+
+        // Get Country (stored as a code, e.g., 'US' for United States)
+        $country_code = get_option( 'woocommerce_default_country' ); // This option stores the country code for the store's base location.
+
+        $address = $address_line_1 . $address_line_2;
+
+        $data = [
+            'descriptor'            => substr(get_option('blogname'), 0, 60),
+            'descriptor_phone'      => '', // Your customer service number
+            'descriptor_address'    => substr($address, 0, 60),
+            'descriptor_city'       => substr($city, 0, 60),
+            'descriptor_state'      => substr($state_code, 0, 60),
+            'descriptor_postal'     => substr($postcode, 0, 60),
+            'descriptor_country'    => substr($country_code, 0, 60),
+            'descriptor_url'        => substr(home_url(), 0, 60)
+        ];
+
+        return $data;
+    }
+
     /**
      * Prepare shipping data
      *
@@ -295,15 +339,15 @@ class NMI_Payment_API extends NMI_Base
         $data = [];
 
         $shipping_fields = [
-            'shipping_first_name' => 'first_name',
-            'shipping_last_name' => 'last_name',
-            'shipping_company' => 'company',
-            'shipping_address1' => 'address1',
-            'shipping_address2' => 'address2',
-            'shipping_city' => 'city',
-            'shipping_state' => 'state',
-            'shipping_zip' => 'zip',
-            'shipping_country' => 'country',
+            'shipping_firstname' => 'shipping_firstname',
+            'shipping_lastname' => 'shipping_lastname',
+            'shipping_company' => 'shipping_company',
+            'shipping_address1' => 'shipping_address1',
+            'shipping_address2' => 'shipping_address2',
+            'shipping_city' => 'shipping_city',
+            'shipping_state' => 'shipping_state',
+            'shipping_zip' => 'shipping_zip',
+            'shipping_country' => 'shipping_country',
         ];
 
         foreach ($shipping_fields as $api_field => $data_field) {
