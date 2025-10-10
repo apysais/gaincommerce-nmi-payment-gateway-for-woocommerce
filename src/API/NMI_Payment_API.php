@@ -199,8 +199,8 @@ class NMI_Payment_API extends NMI_Base
         $data = array_merge($data, $billing_data);
 
         // This need to enable in merchant
-        // $descriptor_data = $this->prepare_descriptor_data($payment_data);
-        // $data = array_merge($data, $descriptor_data);
+        $descriptor_data = $this->prepare_descriptor_data($payment_data);
+        $data = array_merge($data, $descriptor_data);
 
         // Add shipping information if provided
         if (!empty($payment_data['shipping'])) {
@@ -290,9 +290,14 @@ class NMI_Payment_API extends NMI_Base
         return $data;
     }
 
-    protected function prepare_descriptor_data(array $descriptor_data): array
+    protected function prepare_descriptor_data(): array
     {
         $data = [];
+        $gateway = WC()->payment_gateways()->payment_gateways()[AP_NMI_WC_GATEWAY_ID] ?? null;
+
+        if ($gateway && !$gateway->enable_descriptor) {
+            return $data;
+        }
 
         // Get Address Line 1
         $address_line_1 = get_option( 'woocommerce_store_address' );
@@ -316,7 +321,7 @@ class NMI_Payment_API extends NMI_Base
 
         $data = [
             'descriptor'            => substr(get_option('blogname'), 0, 60),
-            'descriptor_phone'      => '', // Your customer service number
+            'descriptor_phone'      => $gateway->descriptor_phone, // Your customer service number
             'descriptor_address'    => substr($address, 0, 60),
             'descriptor_city'       => substr($city, 0, 60),
             'descriptor_state'      => substr($state_code, 0, 60),
@@ -324,6 +329,8 @@ class NMI_Payment_API extends NMI_Base
             'descriptor_country'    => substr($country_code, 0, 60),
             'descriptor_url'        => substr(home_url(), 0, 60)
         ];
+        
+        Logger::get_instance()->info('NMI Payment API: Prepared descriptor data', $data);
 
         return $data;
     }

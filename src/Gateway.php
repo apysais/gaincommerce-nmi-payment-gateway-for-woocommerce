@@ -70,6 +70,10 @@ class Gateway extends WC_Payment_Gateway
      */
     public $restricted_card_types;
 
+    public $enable_descriptor;
+    public $descriptor;
+    public $descriptor_phone;
+
     public function __construct()
     {
         $this->id                 = self::GATEWAY_ID;
@@ -95,7 +99,10 @@ class Gateway extends WC_Payment_Gateway
         $this->transaction_mode = $this->get_option('transaction_mode', 'sale');
         $this->send_receipts = 'yes' === $this->get_option('send_receipts');
         $this->restricted_card_types = $this->get_option('restricted_card_types', array());
-        $this->logging = 'yes' === $this->get_option('logging');    
+        $this->logging = 'yes' === $this->get_option('logging');
+        $this->enable_descriptor = 'yes' === $this->get_option('enable_descriptor');
+        $this->descriptor = $this->get_option('descriptor');
+        $this->descriptor_phone = $this->get_option('descriptor_phone');
 
         // Set private key (secondary authentication)
         $this->private_key = $this->get_option('private_key');
@@ -239,6 +246,42 @@ class Gateway extends WC_Payment_Gateway
                 ),
                 'default' => '',
                 'desc_tip' => false,
+            ],
+            'descriptor' => [
+                'title' => __('Billing Descriptor', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                'type' => 'text',
+                'description' => __(
+                    '<p>The billing descriptor that appears on customers\' credit card statements. 
+                    Typically includes your business name and contact information. 
+                    Maximum 60 characters.</p>
+                    <p>The address, city, state, country fields are taken in WooCommerce General Settings.</p>
+                    <p>The URL is taken from WordPress Site Address (URL) setting.</p>
+                    ',
+                    'gaincommerce-nmi-payment-gateway-for-woocommerce'
+                ),
+                'default' => substr(get_option('blogname'), 0, 60),
+                'desc_tip' => false,
+            ],
+            'descriptor_phone' => [
+                'title' => __('Billing Descriptor Phone', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                'type' => 'text',
+                'description' => __(
+                    'The phone number that appears on customers\' credit card statements. 
+                    Typically includes your business phone number.
+                    <br>Maximum 13 characters.',
+                    'gaincommerce-nmi-payment-gateway-for-woocommerce'
+                ),
+                'default' => '',
+                'desc_tip' => false,
+            ],
+            'enable_descriptor' => [
+                'title' => __('Enable Billing Descriptor', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                'label' => __('Enable custom billing descriptor', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                'type' => 'checkbox',
+                'description' => __(
+                    'When enabled, the specified billing descriptor will be sent with transactions.',
+                    'gaincommerce-nmi-payment-gateway-for-woocommerce'
+                ),
             ],
             'logging' => [
                 'title' => __('Logging', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
@@ -553,11 +596,15 @@ class Gateway extends WC_Payment_Gateway
                 $cvv_response
             ));
 
-            $interpret_response_code = Parse_Response_Codes::api_response_code($response['response_code']);
-            $order->add_order_note(sprintf(
-                __('Response Code: %1$s', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
-                $interpret_response_code
-            ));
+            if (isset($response['response_code']) ) {
+                $interpret_response_code = Parse_Response_Codes::api_response_code($response['response_code']);
+                $order->add_order_note(sprintf(
+                    __('Response Code: %1$s', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                    $interpret_response_code
+                ));
+            }
+
+            
             
             $order->save();
 

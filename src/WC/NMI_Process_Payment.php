@@ -97,7 +97,8 @@ class NMI_Process_Payment
                 'auth_code' => $processed_response['auth_code'],
                 'response_message' => $processed_response['response_message'],
                 'cvv_response' => $processed_response['cvv_response'],
-                'avs_response' => $processed_response['avs_response']
+                'avs_response' => $processed_response['avs_response'],
+                'response_code' => $processed_response['response_code'],
             ];
         } else {
             return [
