@@ -107,10 +107,10 @@ No. This plugin does not store any customer credit card numbers or personal cust
 Visit <a href="https://www.gaincommerce.com/support" target="_blank">gaincommerce.com/support</a>.
 
 == Screenshots ==
-1. WooCommerce Checkout Page layout
-2. Gain Commerce/NMI settings page in WooCommerce
-3. WooCommerce Order Notes displaying AVS, CVV, Confirmation, and Error codes from NMI.
-4. Dynamic Descriptor settings in WooCommerce (when enabled in NMI)
+1. Gain Commerce/NMI settings page in WooCommerce
+2. WooCommerce Checkout Page layout
+3. Dynamic Descriptor settings in WooCommerce (when enabled in NMI)
+4. WooCommerce Order Notes displaying AVS, CVV, Confirmation, and Error codes from NMI.
 
 
 == Changelog ==
