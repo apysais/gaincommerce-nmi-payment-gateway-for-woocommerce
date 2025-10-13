@@ -8,34 +8,48 @@ License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Requires Plugins: woocommerce
 
-Integrates the NMI payment gateway with your WooCommerce store.
+PCI-compliant payment gateway integration between NMI and WooCommerce. Seamlessly accept e-commerce credit card payments through WooCommerce stores.
 
 == Description ==
 
-**Important Requirements:**
-– This plugin only works with WooCommerce version 8.0 or higher
-– Only supports WooCommerce HPOS (High-Performance Order Storage)
-– Only tested and supported on WordPress 6.8.*
+The <strong>Gain Commerce NMI Payment Gateway for WooCommerce</strong> is the premier free NMI plugin for secure, flexible credit card processing on your WooCommerce store. This plugin offers easy integration into WooCommerce</strong> to create a seamless customer checkout experience. Achieve top-tier security with full PCI-DSS Compliance through the NMI payment gateway, utilizing Collect.js for safe data tokenization that keeps sensitive card data off your server. 
 
-**Compatibility:**
-– WooCommerce 8.0+ (HPOS only)
-– WordPress 6.8.*
+Merchants gain essential features like the Authorize Now and Capture Later flexibility, easy refunds managed from the WooCommerce dashboard, and the ability to control accepted card types. The plugin also supports advanced features such as Dynamic Descriptors and records AVS/CVV response codes. Streamline your transaction management with a reliable, feature-rich gateway plugin from Gain Commerce.
 
-The **Gain Commerce NMI Payment Gateway for WooCommerce** plugin is Free for merchants to accept payments via NMI directly in their WooCommerce store. Maintain control of the checkout process with a seamless and secure checkout experience for customers from your website. Developed with PCI-Compliance at the forefront, this plugin handles every transaction with the highest levels of security through NMI.
+<strong>Free Plugin Version Includes</strong>
+=
+* <strong>Easy Integration</strong> into WooCommerce for a seamless customer checkout process. 
+* <strong>Secure Payment Processing</strong> with full PCI-DSS Compliance via the NMI payment gateway.
+* <strong>Credit Card Processing</strong> managed entirely by NMI with data tokenization through <a href="https://docs.nmi.com/docs/collectjs/" target="_blank">Collect.js</a>  
+* <strong>Manage Transactions</strong> from the WooCommerce dashboard.
+* <strong>Customizable Settings</strong> in the WooCommerce admin.
+* <strong>Control Card Types</strong> to accept or restrict all major credit card brands, as needed.
+* <strong>Receipts</strong> from the WooCommerce dashboard through NMI.
+* <strong>Refunds</strong> from the WooCommerce dashboard.
+* <strong>AVS/CVV Response Codes</strong> recorded in order notes.
+* <strong>Dynamic Descriptors</strong> available for merchants requiring variable descriptors on customer statements.
+* <strong>Authorize Now and Capture Later</strong> flexibility for transactions occurring at a later date.
+* <strong>Shipping Info</strong> sent to NMI transaction ledger.
+* <strong>AVS/CVV Response Codes</strong> recorded in order notes.
+* <strong>Logging</strong> to detect and fix errors or issues.
 
-= Free Plugin Features Include =
-* Easy Integration into WooCommerce: Simple setup after integration for a seamless customer checkout process. 
-* Secure Payment Processing: Full PCI-DSS Compliance via the NMI payment gateway. 
-* Credit Card Processing: Complete PCI-Compliant Tokenization of payment account data sent via Collect.js.
-* Authorize Now, Capture Later: Authorize payments now and Capture payments later.
-* Control Card Types: Supports major credit cards and restricts credit card brands as needed.
-* Manage Transactions from the WooCommerce dashboard.
-* Customizable Settings in WooCommerce Admin.
-* Many More Features
+
+<strong>Important Requirements:</strong>
+=
+* Active NMI account
+* WooCommerce version 8.0 or higher.
+* WooCommerce HPOS (High-Performance Order Storage)
+* WordPress 6.8.*
+
+<strong>Compatibility:</strong>
+=
+* WooCommerce 8.0+ (HPOS only)
+* WordPress 6.8.*
 
 == Source Code ==
-The source code for the minified JS/CSS is available at:
-https://github.com/apysais/gaincommerce-nmi-payment-gateway-for-woocommerce
+The source code for the minified JS/CSS is available at: 
+<a href="https://github.com/apysais/gaincommerce-nmi-payment-gateway-for-woocommerce/" target="_blank">Gain Commerce NMI Payment Gateway for WooCommerce</a>
+
 
 Build instructions:
 1. Clone the repository.
@@ -43,14 +57,13 @@ Build instructions:
 3. Run `npm run build` to generate production assets.
 
 == External Services ==
-
 This plugin connects to the NMI payment gateway to process transactions.
 
-– **Service:** NMI Payment Gateway
-– **Purpose:** To process credit card payments securely.
-– **Data Sent:** Card details (via tokenization), order details.
-– **Terms of Service:** https://www.nmi.com/legal/terms
-– **Privacy Policy:** https://www.nmi.com/legal/privacy
+* Service: <a href="https://www.nmi.com/" target="_blank">NMI Payment Gateway</a>
+* Purpose: To process credit card payments securely.
+* Data Sent: Card details (via tokenization), order details.
+* <a href="https://www.nmi.com/legal/terms/" target="_blank">Terms of Service</a>
+* <a href="https://www.nmi.com/legal/privacy/" target="_blank">Privacy Policy</a>
 
 **When Data Is Sent:**  
 Data is transmitted only when a customer submits payment information during checkout.
@@ -58,9 +71,10 @@ Data is transmitted only when a customer submits payment information during chec
 **Where Data Is Sent:**  
 All sensitive data is sent directly to NMI’s secure servers. Your website does not store or process raw payment data.
 
-The plugin loads the NMI Collect.js script for tokenization:
-– **Script URL:** https://docs.nmi.com/docs/collectjs
-– Collect.js is a PCI-compliant JavaScript library provided by NMI to tokenize payment data in the browser before it reaches your server.
+The plugin loads the NMI Collect.js script for tokenization: 
+=
+* Script URL:</strong> <a href="https://docs.nmi.com/docs/collectjs" target="_blank">https://docs.nmi.com/docs/collectjs</a>
+* Collect.js is a PCI-compliant JavaScript library provided by NMI to tokenize payment data in the browser before it reaches your server.
 
 **Conditions:**  
 Data is encrypted and tokenized using Collect.js. Only a single-use token is returned to your site for transaction processing.
@@ -71,21 +85,33 @@ Data is encrypted and tokenized using Collect.js. Only a single-use token is ret
 3. Configure the plugin settings in WooCommerce > Settings > Payments > Gain Commerce NMI Payment Gateway.
 
 == Frequently Asked Questions ==
-= Does this plugin require an NMI account? =
-Yes, you need an active NMI merchant account to use this plugin.
+= Is this plugin PCI Compliant? =
+Yes. Utilizing NMI's Collect.js to tokenize payment data, sensitive information never touches merchant servers.
 
 = Does this plugin require WooCommerce? =
-Yes, WooCommerce must be installed and active.
+Yes. WooCommerce 6.8 or higher must be installed and active.
 
-= Is this plugin PCI compliant? =
-Yes. It uses NMI's Collect.js to tokenize payment data, ensuring that sensitive information never touches your server.
+= Does this plugin require a Network Merchants account? = 
+Yes. An active payment gateway account at NMI is required.  <a href="https://www.alliedpay.com" target="_blank">Allied Payments</a>, our preferred provider, can help set up accounts.
 
-= Is SSL required? =
-Yes, SSL is required to ensure secure payment processing.
+= Is an SSL required? = 
+Yes. A valid SSL certificate is required to protect customer credit card account information and is a requirement for PCI-DSS compliance. 
+
+ = What information is passed to NMI? =
+Payment account information is only transferred through tokenization to maintain absolute PCI Compliance. No sensitive payment information is sent unsecured.
+
+ = Does this plugin store customer information? =
+No. This plugin does not store any customer credit card numbers or personal customer information.
+
+ = For additional integration information and support =
+Visit <a href="https://www.gaincommerce.com/support" target="_blank">gaincommerce.com/support</a>.
 
 == Screenshots ==
-1. NMI settings page in WooCommerce
-2. Checkout page with NMI payment option
+1. WooCommerce Checkout Page layout
+2. Gain Commerce/NMI settings page in WooCommerce
+3. WooCommerce Order Notes displaying AVS, CVV, Confirmation, and Error codes from NMI.
+4. Dynamic Descriptor settings in WooCommerce (when enabled in NMI)
+
 
 == Changelog ==
 = 1.7.6 =
@@ -111,3 +137,6 @@ Yes, SSL is required to ensure secure payment processing.
 == Upgrade Notice ==
 = 1.0.0 =
 Initial release of Gain Commerce NMI Payment Gateway for WooCommerce plugin.
+
+= Additional Information Required =
+Visit our support page at <a href="https://www.gaincommerce.com/support" target="_blank">Gain Commerce</a>
