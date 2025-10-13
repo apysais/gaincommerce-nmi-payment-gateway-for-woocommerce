@@ -2,8 +2,8 @@
 Contributors: allan.casilum, gaincommerce
 Tags: nmi, woocommerce, payment gateway, credit card, pci
 Requires at least: 6.8
-Tested up to: 6.8
-Stable tag: 1.7.8
+Tested up to: 6.8.3
+Stable tag: 1.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Requires Plugins: woocommerce
@@ -114,6 +114,12 @@ Visit <a href="https://www.gaincommerce.com/support" target="_blank">gaincommerc
 
 
 == Changelog ==
+= 1.8.0 =
+* Add Shipping Fields from WooCommerce order to NMI merchants.
+* Ability to enable Dynamic Descriptor and pass descriptor data.
+* Add AVS/CVV notes in order.
+* Add additional order notes as Response code and NMI payment status.
+
 = 1.7.6 =
 * Integrate restrict card type in block checkout
 * Integrate restrict card type in legacy checkout
