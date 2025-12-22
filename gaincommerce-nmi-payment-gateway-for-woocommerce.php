@@ -4,7 +4,7 @@
  * Description: WooCommerce payment gateway using NMI. Compatible with WooCommerce 8+ (HPOS only) and WordPress 6.8.*
  * Version: 1.8.0
  * Requires at least: 6.8
- * Tested up to: 6.8.3
+ * Tested up to: 6.9
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
  * Author: gaincommerce
@@ -12,7 +12,7 @@
  * Text Domain: gaincommerce-nmi-payment-gateway-for-woocommerce
  * Domain Path: /languages
  * WC requires at least: 8.0
- * WC tested up to: 10.1.2
+ * WC tested up to: 10.4.2
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  */

@@ -2,8 +2,8 @@
 Contributors: allan.casilum, gaincommerce
 Tags: nmi, woocommerce, payment gateway, credit card, pci
 Requires at least: 6.8
-Tested up to: 6.8.3
-Stable tag: 1.8.0
+Tested up to: 6.9
+Stable tag: 1.8.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Requires Plugins: woocommerce
@@ -27,11 +27,15 @@ Merchants gain essential features like the Authorize Now and Capture Later flexi
 * <strong>Receipts</strong> from the WooCommerce dashboard through NMI.
 * <strong>Refunds</strong> from the WooCommerce dashboard.
 * <strong>AVS/CVV Response Codes</strong> recorded in order notes.
-* <strong>Dynamic Descriptors</strong> available for merchants requiring variable descriptors on customer statements.
+* <strong>Dynamic Descriptors</strong> variable descriptors for customer statements.
 * <strong>Authorize Now and Capture Later</strong> flexibility for transactions occurring at a later date.
 * <strong>Shipping Info</strong> sent to NMI transaction ledger.
 * <strong>AVS/CVV Response Codes</strong> recorded in order notes.
 * <strong>Logging</strong> to detect and fix errors or issues.
+
+<strong>Premium Plugin Version Includes</strong>
+=
+* <strong>ACH Payments</strong> integrated electronic transfers through the ACH network.
 
 
 <strong>Important Requirements:</strong>
@@ -107,13 +111,18 @@ No. This plugin does not store any customer credit card numbers or personal cust
 Visit <a href="https://www.gaincommerce.com/support" target="_blank">gaincommerce.com/support</a>.
 
 == Screenshots ==
-1. Gain Commerce/NMI settings page in WooCommerce
-2. WooCommerce Checkout Page layout
-3. Dynamic Descriptor settings in WooCommerce (when enabled in NMI)
-4. WooCommerce Order Notes displaying AVS, CVV, Confirmation, and Error codes from NMI.
+1. WooCommerce Checkout Page layout
+2. Gain Commerce/NMI settings page in WooCommerce
+3. WooCommerce Order Notes displaying AVS, CVV, Confirmation, and Error codes from NMI.
+4. Dynamic Descriptor settings in WooCommerce (when enabled in NMI)
 
 
 == Changelog ==
+= 1.8.1 =
+* Test to latest WordPress 6.9 version.
+* Test to latest WooCommerce 10.4.2
+* Add Description for premium plugin in readme file.
+
 = 1.8.0 =
 * Add Shipping Fields from WooCommerce order to NMI merchants.
 * Ability to enable Dynamic Descriptor and pass descriptor data.
@@ -145,4 +154,7 @@ Visit <a href="https://www.gaincommerce.com/support" target="_blank">gaincommerc
 Initial release of Gain Commerce NMI Payment Gateway for WooCommerce plugin.
 
 = Additional Information Required =
-Visit our support page at <a href="https://www.gaincommerce.com/support" target="_blank">Gain Commerce</a>
+Visit our support page at <a href="https://www.gaincommerce.com/support" target="_blank">Gain Commerce</a> 
+
+
+
