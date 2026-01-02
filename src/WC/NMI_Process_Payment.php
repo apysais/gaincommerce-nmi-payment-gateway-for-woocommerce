@@ -72,6 +72,8 @@ class NMI_Process_Payment
             'cvv'                   => isset($config['card_data']['cvv']) ? $config['card_data']['cvv'] : '',
         ];
 
+        $payment_data = apply_filters('gaincommerce_nmi_process_payment_data', $payment_data, $order, $config);
+
         // Process payment based on transaction mode
 
         // Use the new API factory
