@@ -182,6 +182,19 @@ jQuery(document).ready(function($) {
                 form.find('input[name="payment_token"]').val(response.token);
             }
             
+            // Add save payment method checkbox value
+            var savePaymentCheckbox = $('#save_payment_method');
+            var savePayment = savePaymentCheckbox.length > 0 && savePaymentCheckbox.is(':checked') ? '1' : '0';
+            console.log('Save payment checkbox found:', savePaymentCheckbox.length > 0);
+            console.log('Save payment checkbox checked:', savePaymentCheckbox.is(':checked'));
+            console.log('Save payment value:', savePayment);
+            
+            if (form.find('input[name="save_payment_method"]').length === 0) {
+                form.append('<input type="hidden" name="save_payment_method" value="' + savePayment + '">');
+            } else {
+                form.find('input[name="save_payment_method"]').val(savePayment);
+            }
+            
             // Submit the form
             form.off('checkout_place_order').submit();
         } else {

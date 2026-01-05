@@ -71,9 +71,9 @@ class NMI_Process_Payment
             'ccexp'                 => isset($config['card_data']['ccexp']) ? $config['card_data']['ccexp'] : '',
             'cvv'                   => isset($config['card_data']['cvv']) ? $config['card_data']['cvv'] : '',
         ];
-
+        apnmi_dd($payment_data, 'before gaincommerce_nmi_process_payment_data $_POST data'); //remove after testing
         $payment_data = apply_filters('gaincommerce_nmi_process_payment_data', $payment_data, $order, $config);
-
+        
         // Process payment based on transaction mode
 
         // Use the new API factory

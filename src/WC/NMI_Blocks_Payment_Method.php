@@ -81,6 +81,12 @@ class NMI_Blocks_Payment_Method extends AbstractPaymentMethodType {
             ];
         }
 
+        // Safely check if premium plugin's save card feature is enabled
+        $save_payment_enabled = false;
+        if (class_exists('GainCommerceNmiEnterprise\Save_Card_Settings')) {
+            $save_payment_enabled = \GainCommerceNmiEnterprise\Save_Card_Settings::is_save_card_enabled();
+        }
+
         return [
             'title' => $gateway->get_title(),
             'description' => $gateway->get_description(),
@@ -94,7 +100,8 @@ class NMI_Blocks_Payment_Method extends AbstractPaymentMethodType {
                 : [],
             'is_available' => $gateway->enabled,
             'icons' => '',
-            'wc_gateway_id' => AP_NMI_WC_GATEWAY_ID
+            'wc_gateway_id' => AP_NMI_WC_GATEWAY_ID,
+            'save_payment_enabled' => $save_payment_enabled
         ];
     }
 

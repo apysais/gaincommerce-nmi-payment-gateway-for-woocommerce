@@ -214,6 +214,15 @@
     font-style: italic;
 }
 
+/* Hide the checkmark SVG in save payment checkbox */
+.ap-nmi-save-payment-checkbox svg {
+    display: none !important;
+}
+
+.ap-nmi-save-payment-checkbox .components-checkbox-control__input-container {
+    margin-right: 8px;
+}
+
 /* Responsive design for card icons */
 @media (max-width: 768px) {
     .ap-nmi-card-icons {
@@ -226,4 +235,13 @@
         height: 18px;
         font-size: 9px;
     }
+}
+
+/* Hide the checkmark SVG in save payment checkbox */
+.ap-nmi-save-payment-checkbox svg {
+    display: none !important;
+}
+
+.ap-nmi-save-payment-checkbox .components-checkbox-control__input-container {
+    margin-right: 8px;
 }

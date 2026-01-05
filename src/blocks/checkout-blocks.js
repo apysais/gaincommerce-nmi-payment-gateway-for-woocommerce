@@ -7,6 +7,7 @@ import { createElement, useState, useEffect, useRef } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import { registerPaymentMethod } from '@woocommerce/blocks-registry';
 import { getSetting } from '@woocommerce/settings';
+import { CheckboxControl } from '@wordpress/components';
 
 // Debug logging
 console.log('AP NMI Blocks: Script loading...');
@@ -29,7 +30,14 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
         cvv: true, // CVV is not always required, so default to true
     });
     const [error, setError] = useState(null);
+    const [savePaymentMethod, setSavePaymentMethod] = useState(false);
+    const savePaymentMethodRef = useRef(false); // Ref to hold current value
     const promiseRef = useRef(null); // To hold promise resolve/reject functions
+
+    // Keep ref in sync with state
+    useEffect(() => {
+        savePaymentMethodRef.current = savePaymentMethod;
+    }, [savePaymentMethod]);
 
     // Initialize CollectJS and set up the callback just once
     useEffect(() => {
@@ -83,13 +91,20 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
 
                     if (response.token) {
                         console.log('AP NMI Blocks: Token generated successfully:', response.token);
+                        console.log('AP NMI Blocks: savePaymentMethod state:', savePaymentMethodRef.current);
+                        console.log('AP NMI Blocks: save_payment_method value being sent:', savePaymentMethodRef.current ? '1' : '0');
                         promiseRef.current.resolve({
                             type: emitResponse.responseTypes.SUCCESS,
                             meta: {
                                 paymentMethodData: {
                                     payment_token: response.token,
+                                    save_payment_method: savePaymentMethodRef.current ? '1' : '0',
                                 },
                             },
+                        });
+                        console.log('AP NMI Blocks: paymentMethodData sent:', {
+                            payment_token: response.token,
+                            save_payment_method: savePaymentMethodRef.current ? '1' : '0',
                         });
                     } else {
                         console.error('AP NMI Blocks: Token generation failed.', response);
@@ -215,6 +230,24 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                     {__('TEST MODE: Use a test card number.', 'gaincommerce-nmi-payment-gateway-for-woocommerce')}
                 </div>
             )}
+
+            {/* Save Payment Method Checkbox */}
+            {settings.save_payment_enabled && (
+                <div className="ap-nmi-field form-row form-row-wide" style={{ marginTop: '1em' }}>
+                    {console.log('AP NMI Blocks: Rendering save payment checkbox, current state:', savePaymentMethod)}
+                    <CheckboxControl
+                        label={__('Save payment method for future purchases', 'gaincommerce-nmi-payment-gateway-for-woocommerce')}
+                        checked={savePaymentMethod}
+                        onChange={(newValue) => {
+                            console.log('AP NMI Blocks: Checkbox onChange fired, new value:', newValue);
+                            setSavePaymentMethod(newValue);
+                        }}
+                        __nextHasNoMarginBottom
+                        className="ap-nmi-save-payment-checkbox"
+                    />
+                </div>
+            )}
+            {!settings.save_payment_enabled && console.log('AP NMI Blocks: save_payment_enabled is FALSE, checkbox not rendered')}
         </div>
     );
 };

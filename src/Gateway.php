@@ -307,13 +307,20 @@ class Gateway extends WC_Payment_Gateway
             }
         }
 
+        // Safely check if premium plugin's save card feature is enabled
+        $save_payment_enabled = false;
+        if (class_exists('GainCommerceNmiEnterprise\Save_Card_Settings')) {
+            $save_payment_enabled = \GainCommerceNmiEnterprise\Save_Card_Settings::is_save_card_enabled();
+        }
+
         $args = [
             'gateway_id'        => $this->id,
             'description'       => $this->description,
             'test_mode_notes'   => $test_mode_notes,
             'is_on_test_mode'   => $this->testmode,
             'use_collect_js'    => $this->use_collect_js,
-            'display_accepted_cards' => $this->display_card_type_icons()
+            'display_accepted_cards' => $this->display_card_type_icons(),
+            'save_payment_enabled' => $save_payment_enabled
         ];
 
         wc_get_template(
@@ -432,6 +439,8 @@ class Gateway extends WC_Payment_Gateway
     public function process_payment( $order_id )
     {
         $order = wc_get_order($order_id);
+        
+        apnmi_dd($_POST, 'process_payment $_POST data'); //remove after testing
 
         if (!$order) {
             wc_add_notice(__('Order not found.', 'gaincommerce-nmi-payment-gateway-for-woocommerce'), 'error');
@@ -487,6 +496,12 @@ class Gateway extends WC_Payment_Gateway
             'payment_token' => $payment_token,
             'card_data' => $card_data
         ];
+
+        if (isset($_POST['save_payment_method']) && $_POST['save_payment_method'] == '1') {
+            $gateway_config['save_payment_method'] = true;
+        } else {
+            $gateway_config['save_payment_method'] = false;
+        }
 
         if ($this->send_receipts) {
             $gateway_config['customer_receipt'] = true;

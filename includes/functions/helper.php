@@ -83,7 +83,7 @@ function apnmi_dd($data =[], $label ='', $exit = false)
     if($label) {
         echo '<strong>' . esc_html($label) . ':</strong> ';
     }
-    var_dump($data);
+    print_r($data);
     echo '</pre>';
     if($exit){
         exit;

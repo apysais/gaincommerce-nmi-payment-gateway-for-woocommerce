@@ -30,8 +30,26 @@ $display_accepted_cards = isset($args['display_accepted_cards']) ? $args['displa
             );
         ?>
     </div>
+
     <?php
         // Add this action hook if you want your custom payment gateway to support it
         do_action( 'woocommerce_credit_card_form_end', $gateway_id );
+    ?>
+
+    <?php 
+        // Save payment method checkbox
+        $save_payment_enabled = isset($args['save_payment_enabled']) ? $args['save_payment_enabled'] : false;
+        if ($save_payment_enabled) :
+            do_action('gaincommerce_before_save_payment_checkbox', $gateway_id);
+    ?>
+    <p class="form-row form-row-wide">
+        <label class="woocommerce-form__label woocommerce-form__label-for-checkbox checkbox">
+            <input id="save_payment_method" type="checkbox" value="1" />
+            <span><?php esc_html_e('Save payment method for future purchases', 'gaincommerce-nmi-payment-gateway-for-woocommerce'); ?></span>
+        </label>
+    </p>
+    <?php
+            do_action('gaincommerce_after_save_payment_checkbox', $gateway_id);
+        endif;
     ?>
 </div>
