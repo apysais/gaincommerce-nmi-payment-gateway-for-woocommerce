@@ -167,7 +167,8 @@ class NMI_Payment_API extends NMI_Base
      */
     protected function prepare_sale_data(array $payment_data)
     {
-        
+        Logger::get_instance()->debug('NMI Payment API: payment_data', $payment_data);
+
         $data = [
             'type' => 'sale',
             'amount' => number_format((float) $payment_data['amount'], 2, '.', ''),
@@ -221,6 +222,8 @@ class NMI_Payment_API extends NMI_Base
         if (!empty($payment_data['send_receipt']) && $payment_data['send_receipt'] === 'yes') {
             $data['send_email_receipt'] = 'yes';
         }
+
+        $data = apply_filters('apnmi_after_prepare_sale_data', $data, $payment_data);
         
         Logger::get_instance()->debug('NMI Payment API: Prepared sale data', $data);
 

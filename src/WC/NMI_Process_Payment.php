@@ -71,10 +71,11 @@ class NMI_Process_Payment
             'ccexp'                 => isset($config['card_data']['ccexp']) ? $config['card_data']['ccexp'] : '',
             'cvv'                   => isset($config['card_data']['cvv']) ? $config['card_data']['cvv'] : '',
         ];
-        apnmi_dd($payment_data, 'before gaincommerce_nmi_process_payment_data $_POST data'); //remove after testing
+
         $payment_data = apply_filters('gaincommerce_nmi_process_payment_data', $payment_data, $order, $config);
-        
+
         // Process payment based on transaction mode
+        Logger::get_instance()->debug('Processing payment with data', $payment_data);
 
         // Use the new API factory
         $factory = NMI_API_Factory::get_instance();
@@ -101,6 +102,7 @@ class NMI_Process_Payment
                 'cvv_response' => $processed_response['cvv_response'],
                 'avs_response' => $processed_response['avs_response'],
                 'response_code' => $processed_response['response_code'],
+                'customer_vault_id' => $processed_response['customer_vault_id'] ?? null,
             ];
         } else {
             return [

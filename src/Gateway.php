@@ -439,8 +439,6 @@ class Gateway extends WC_Payment_Gateway
     public function process_payment( $order_id )
     {
         $order = wc_get_order($order_id);
-        
-        apnmi_dd($_POST, 'process_payment $_POST data'); //remove after testing
 
         if (!$order) {
             wc_add_notice(__('Order not found.', 'gaincommerce-nmi-payment-gateway-for-woocommerce'), 'error');
@@ -519,6 +517,8 @@ class Gateway extends WC_Payment_Gateway
 
             // Store transaction ID for later capture
             $order->add_meta_data(AP_NMI_WC_META_DATA_TRANSACTION_ID, $response['transaction_id']);
+
+            do_action('apnmi_after_payment_success_processed', $order, $response, $gateway_config);
 
             if ($this->transaction_mode === 'auth') {
                 // this is for auth
@@ -618,8 +618,6 @@ class Gateway extends WC_Payment_Gateway
                     $interpret_response_code
                 ));
             }
-
-            
             
             $order->save();
 

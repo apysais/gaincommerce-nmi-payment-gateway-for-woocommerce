@@ -226,7 +226,7 @@ class NMI_Base
 
         // Check in settings for this restricted type card.
         // Validate transaction type
-        $valid_types = ['sale', 'auth', 'capture', 'void', 'refund', 'credit', 'validate'];
+        $valid_types = ['sale', 'auth', 'capture', 'void', 'refund', 'credit', 'validate', 'generic'];
         if (!in_array($data['type'], $valid_types, true)) {
             return new WP_Error('nmi_validation_error', 'Invalid transaction type: ' . $data['type']);
         }
