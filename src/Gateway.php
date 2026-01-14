@@ -461,6 +461,8 @@ class Gateway extends WC_Payment_Gateway
         }
 
         $payment_token = '';
+        $use_saved_payment_method = false;
+        
         // For blocks checkout, the token is in a different place
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification handled earlier in the method
         if (isset($_POST['payment_method_data']['payment_token'])) {
@@ -470,6 +472,16 @@ class Gateway extends WC_Payment_Gateway
         } elseif (isset($_POST['payment_token']) && !empty($_POST['payment_token'])) {
             // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification handled earlier in the method
             $payment_token = sanitize_text_field(wp_unslash($_POST['payment_token']));
+        }
+
+        // Check if using saved payment method (blocks checkout)
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification handled earlier in the method
+        if (isset($_POST['payment_method_data']['use_save_payment_method']) && $_POST['payment_method_data']['use_save_payment_method'] == '1') {
+            $use_saved_payment_method = true;
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification handled earlier in the method
+        } elseif (isset($_POST['use_save_payment_method']) && $_POST['use_save_payment_method'] == '1') {
+            // Legacy checkout
+            $use_saved_payment_method = true;
         }
         
         $card_data = [];
@@ -492,13 +504,28 @@ class Gateway extends WC_Payment_Gateway
             'use_collect_js' => $this->use_collect_js,
             'transaction_mode' => $this->transaction_mode,
             'payment_token' => $payment_token,
-            'card_data' => $card_data
+            'card_data' => $card_data,
+            'use_save_payment_method' => $use_saved_payment_method
         ];
 
         if (isset($_POST['save_payment_method']) && $_POST['save_payment_method'] == '1') {
             $gateway_config['save_payment_method'] = true;
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification handled earlier in the method
+        } elseif (isset($_POST['payment_method_data']['save_payment_method']) && $_POST['payment_method_data']['save_payment_method'] == '1') {
+            // Block checkout save payment method
+            $gateway_config['save_payment_method'] = true;
         } else {
             $gateway_config['save_payment_method'] = false;
+        }
+
+        if (isset($_POST['save_payment_method']) && $_POST['use_save_payment_method'] == '1') {
+            $gateway_config['use_save_payment_method'] = true;
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification handled earlier in the method
+        } elseif (isset($_POST['payment_method_data']['use_save_payment_method']) && $_POST['payment_method_data']['use_save_payment_method'] == '1') {
+            // Block checkout save payment method
+            $gateway_config['use_save_payment_method'] = true;
+        } else {
+            $gateway_config['use_save_payment_method'] = false;
         }
 
         if ($this->send_receipts) {
@@ -623,6 +650,8 @@ class Gateway extends WC_Payment_Gateway
 
             // Empty cart
             WC()->cart->empty_cart();
+
+            do_action('apnmi_after_payment_complete', $order, $response, $gateway_config);
 
             return [
                 'result' => 'success',

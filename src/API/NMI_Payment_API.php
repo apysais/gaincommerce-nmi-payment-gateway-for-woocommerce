@@ -30,13 +30,14 @@ class NMI_Payment_API extends NMI_Base
      */
     public function process_sale(array $payment_data)
     {
+
         $this->logger->info('NMI Payment API: Processing sale transaction');
         $data = $this->prepare_sale_data($payment_data);
 
         if (is_wp_error($data)) {
             return $data;
         }
-
+        
         return $this->make_post_request($data);
     }
 
@@ -224,7 +225,7 @@ class NMI_Payment_API extends NMI_Base
         }
 
         $data = apply_filters('apnmi_after_prepare_sale_data', $data, $payment_data);
-        
+
         Logger::get_instance()->debug('NMI Payment API: Prepared sale data', $data);
 
         return $data;

@@ -73,15 +73,17 @@ class NMI_Process_Payment
         ];
 
         $payment_data = apply_filters('gaincommerce_nmi_process_payment_data', $payment_data, $order, $config);
+        
+        $config = apply_filters('gaincommerce_nmi_process_payment_config', $config, $payment_data, $order);
 
         // Process payment based on transaction mode
         Logger::get_instance()->debug('Processing payment with data', $payment_data);
-
+        
         // Use the new API factory
         $factory = NMI_API_Factory::get_instance();
         
         $payment_api = $factory->create_payment_api($config);
-
+        
         $response_handler = $factory->create_response_handler();
         if ($config['transaction_mode'] === 'auth') {
             $api_response = $payment_api->process_auth($payment_data);

@@ -87,6 +87,24 @@ class NMI_Blocks_Payment_Method extends AbstractPaymentMethodType {
             $save_payment_enabled = \GainCommerceNmiEnterprise\Save_Card_Settings::is_save_card_enabled();
         }
 
+        // Check if user has saved payment method (only when premium is active)
+        $has_saved_card = false;
+        $saved_card_details = null;
+        
+        if (class_exists('GainCommerceNmiEnterprise\\User\\Meta_Save_Payment_Method_CC') && 
+            class_exists('GainCommerceNmiEnterprise\\Service\\Get_Customer_Vault_Service')) {
+            
+            $user_id = get_current_user_id();
+            if ($user_id) {
+                $has_saved_card = \GainCommerceNmiEnterprise\User\Meta_Save_Payment_Method_CC::has_customer_vault_id_in_user_meta($user_id);
+                
+                if ($has_saved_card) {
+                    $customer_vault_id = \GainCommerceNmiEnterprise\User\Meta_Save_Payment_Method_CC::get_customer_vault_id_from_user_meta($user_id);
+                    $saved_card_details = \GainCommerceNmiEnterprise\Service\Get_Customer_Vault_Service::get_cc_details($customer_vault_id, $user_id);
+                }
+            }
+        }
+
         return [
             'title' => $gateway->get_title(),
             'description' => $gateway->get_description(),
@@ -101,7 +119,9 @@ class NMI_Blocks_Payment_Method extends AbstractPaymentMethodType {
             'is_available' => $gateway->enabled,
             'icons' => '',
             'wc_gateway_id' => AP_NMI_WC_GATEWAY_ID,
-            'save_payment_enabled' => $save_payment_enabled
+            'save_payment_enabled' => $save_payment_enabled,
+            'has_saved_card' => $has_saved_card,
+            'saved_card_details' => $saved_card_details
         ];
     }
 

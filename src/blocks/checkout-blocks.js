@@ -31,13 +31,19 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
     });
     const [error, setError] = useState(null);
     const [savePaymentMethod, setSavePaymentMethod] = useState(false);
+    const [useSavedCard, setUseSavedCard] = useState(false); // Always start with new card form visible for CollectJS
     const savePaymentMethodRef = useRef(false); // Ref to hold current value
+    const useSavedCardRef = useRef(false); // Ref for saved card selection
     const promiseRef = useRef(null); // To hold promise resolve/reject functions
 
-    // Keep ref in sync with state
+    // Keep refs in sync with state
     useEffect(() => {
         savePaymentMethodRef.current = savePaymentMethod;
     }, [savePaymentMethod]);
+
+    useEffect(() => {
+        useSavedCardRef.current = useSavedCard;
+    }, [useSavedCard]);
 
     // Initialize CollectJS and set up the callback just once
     useEffect(() => {
@@ -99,12 +105,14 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                                 paymentMethodData: {
                                     payment_token: response.token,
                                     save_payment_method: savePaymentMethodRef.current ? '1' : '0',
+                                    use_save_payment_method: '0', // New card
                                 },
                             },
                         });
                         console.log('AP NMI Blocks: paymentMethodData sent:', {
                             payment_token: response.token,
                             save_payment_method: savePaymentMethodRef.current ? '1' : '0',
+                            use_save_payment_method: '0',
                         });
                     } else {
                         console.error('AP NMI Blocks: Token generation failed.', response);
@@ -127,6 +135,20 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
         const unsubscribe = onPaymentSetup(() => {
             console.log('AP NMI Blocks: onPaymentSetup triggered.');
             setError(null); // Clear previous errors
+
+            // If using saved card, skip CollectJS and return vault flag
+            if (useSavedCardRef.current && settings.has_saved_card) {
+                console.log('AP NMI Blocks: Using saved payment method.');
+                return {
+                    type: emitResponse.responseTypes.SUCCESS,
+                    meta: {
+                        paymentMethodData: {
+                            use_save_payment_method: '1', // Using saved card
+                            save_payment_method: '0', // Not saving
+                        },
+                    },
+                };
+            }
 
             // Check field validity before proceeding
             const allFieldsValid = Object.values(fieldValidity).every(Boolean);
@@ -171,83 +193,116 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
             });
         });
         return unsubscribe;
-    }, [onPaymentSetup, fieldValidity]);
+    }, [onPaymentSetup, fieldValidity, useSavedCard]);
 
     // Render the form
     return (
         <div className="ap-nmi-payment-form-blocks">
             {error && <div className="woocommerce-error" role="alert">{error}</div>}
 
-            <div className="ap-nni-card-icons-container">
-                <div className="ap-nmi-card-icons">
-                    {settings.allowed_card_types && Object.entries(settings.allowed_card_types).map(([cardType, cardData]) => (
-                        <span 
-                            key={cardType} 
-                            className={`card-icon ${cardType} ${cardData.status}`}
-                            title={cardData.title}
-                        ></span>
-                    ))}
-                    
+            {/* Saved Payment Method Selection */}
+            {settings.has_saved_card && settings.saved_card_details && (
+                <div className="ap-nmi-saved-card-selection" style={{ marginBottom: '1em' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5em' }}>
+                        <input
+                            type="radio"
+                            name="use_save_payment_method"
+                            value="1"
+                            checked={useSavedCard}
+                            onChange={() => setUseSavedCard(true)}
+                            style={{ marginRight: '0.5em' }}
+                        />
+                        {__('Use saved card ending in', 'gaincommerce-nmi-payment-gateway-for-woocommerce')} ****{settings.saved_card_details.last4}
+                        {settings.saved_card_details.type && ` (${settings.saved_card_details.type})`}
+                        {settings.saved_card_details.exp_date && ` - Exp: ${settings.saved_card_details.exp_date}`}
+                    </label>
+                    <label style={{ display: 'block' }}>
+                        <input
+                            type="radio"
+                            name="use_save_payment_method"
+                            value="0"
+                            checked={!useSavedCard}
+                            onChange={() => setUseSavedCard(false)}
+                            style={{ marginRight: '0.5em' }}
+                        />
+                        {__('Use a new card', 'gaincommerce-nmi-payment-gateway-for-woocommerce')}
+                    </label>
                 </div>
-                {settings.restricted_card_types.length > 0 && (
-                    <div className="ap-nmi-card-restrictions-info">
-                        {__('Cards marked with ✕ are not accepted for payment.', 'gaincommerce-nmi-payment-gateway-for-woocommerce')}
+            )}
+
+            {/* Card fields - always rendered but hidden when using saved card */}
+            <div style={{ display: (settings.has_saved_card && useSavedCard) ? 'none' : 'block' }}>
+                <div className="ap-nni-card-icons-container">
+                    <div className="ap-nmi-card-icons">
+                        {settings.allowed_card_types && Object.entries(settings.allowed_card_types).map(([cardType, cardData]) => (
+                            <span 
+                                key={cardType} 
+                                className={`card-icon ${cardType} ${cardData.status}`}
+                                title={cardData.title}
+                            ></span>
+                        ))}
+                        
+                    </div>
+                    {settings.restricted_card_types.length > 0 && (
+                        <div className="ap-nmi-card-restrictions-info">
+                            {__('Cards marked with ✕ are not accepted for payment.', 'gaincommerce-nmi-payment-gateway-for-woocommerce')}
+                        </div>
+                    )}
+                    <p></p>
+                </div>
+
+                {/* Card Number Field */}
+                <div className="ap-nmi-field form-row form-row-wide">
+                    <label htmlFor="ap-nmi-card-number">
+                        {__('Card Number', 'gaincommerce-nmi-payment-gateway-for-woocommerce')} <span className="required">*</span>
+                    </label>
+                    <div id="ap-nmi-card-number"></div>
+                </div>
+
+                {/* Row for Expiry and CVV */}
+                <div className="ap-nmi-row">
+                    {/* Expiry Date Field */}
+                    <div className="ap-nmi-field ap-nmi-half form-row form-row-first">
+                        <label htmlFor="ap-nmi-expiry-date">
+                            {__('Expiry Date', 'gaincommerce-nmi-payment-gateway-for-woocommerce')} <span className="required">*</span>
+                        </label>
+                        <div id="ap-nmi-expiry-date"></div>
+                    </div>
+
+                    {/* CVV Field */}
+                    <div className="ap-nmi-field ap-nmi-half form-row form-row-last">
+                        <label htmlFor="ap-nmi-card-cvv">
+                            {__('CVV', 'gaincommerce-nmi-payment-gateway-for-woocommerce')}
+                        </label>
+                        <div id="ap-nmi-card-cvv"></div>
+                    </div>
+                </div>
+
+                {/* Test mode notice */}
+                {settings.testmode === 'yes' && (
+                    <div className="ap-nmi-test-notice" style={{ marginTop: '1em', padding: '0.5em', backgroundColor: '#f0f0f0', border: '1px solid #ddd', borderRadius: '4px' }}>
+                        {__('TEST MODE: Use a test card number.', 'gaincommerce-nmi-payment-gateway-for-woocommerce')}
                     </div>
                 )}
-                <p></p>
+
+                {/* Save Payment Method Checkbox - only show when using new card */}
+                {settings.save_payment_enabled && (
+                    <div className="ap-nmi-field form-row form-row-wide" style={{ marginTop: '1em' }}>
+                        {console.log('AP NMI Blocks: Rendering save payment checkbox, current state:', savePaymentMethod)}
+                        <CheckboxControl
+                            label={__('Save payment method for future purchases', 'gaincommerce-nmi-payment-gateway-for-woocommerce')}
+                            checked={savePaymentMethod}
+                            onChange={(newValue) => {
+                                console.log('AP NMI Blocks: Checkbox onChange fired, new value:', newValue);
+                                setSavePaymentMethod(newValue);
+                            }}
+                            __nextHasNoMarginBottom
+                            className="ap-nmi-save-payment-checkbox"
+                        />
+                    </div>
+                )}
+                {!settings.save_payment_enabled && console.log('AP NMI Blocks: save_payment_enabled is FALSE, checkbox not rendered')}
             </div>
-
-            {/* Card Number Field */}
-            <div className="ap-nmi-field form-row form-row-wide">
-                <label htmlFor="ap-nmi-card-number">
-                    {__('Card Number', 'gaincommerce-nmi-payment-gateway-for-woocommerce')} <span className="required">*</span>
-                </label>
-                <div id="ap-nmi-card-number"></div>
-            </div>
-
-            {/* Row for Expiry and CVV */}
-            <div className="ap-nmi-row">
-                {/* Expiry Date Field */}
-                <div className="ap-nmi-field ap-nmi-half form-row form-row-first">
-                    <label htmlFor="ap-nmi-expiry-date">
-                        {__('Expiry Date', 'gaincommerce-nmi-payment-gateway-for-woocommerce')} <span className="required">*</span>
-                    </label>
-                    <div id="ap-nmi-expiry-date"></div>
-                </div>
-
-                {/* CVV Field */}
-                <div className="ap-nmi-field ap-nmi-half form-row form-row-last">
-                    <label htmlFor="ap-nmi-card-cvv">
-                        {__('CVV', 'gaincommerce-nmi-payment-gateway-for-woocommerce')}
-                    </label>
-                    <div id="ap-nmi-card-cvv"></div>
-                </div>
-            </div>
-
-            {/* Test mode notice */}
-            {settings.testmode === 'yes' && (
-                <div className="ap-nmi-test-notice" style={{ marginTop: '1em', padding: '0.5em', backgroundColor: '#f0f0f0', border: '1px solid #ddd', borderRadius: '4px' }}>
-                    {__('TEST MODE: Use a test card number.', 'gaincommerce-nmi-payment-gateway-for-woocommerce')}
-                </div>
-            )}
-
-            {/* Save Payment Method Checkbox */}
-            {settings.save_payment_enabled && (
-                <div className="ap-nmi-field form-row form-row-wide" style={{ marginTop: '1em' }}>
-                    {console.log('AP NMI Blocks: Rendering save payment checkbox, current state:', savePaymentMethod)}
-                    <CheckboxControl
-                        label={__('Save payment method for future purchases', 'gaincommerce-nmi-payment-gateway-for-woocommerce')}
-                        checked={savePaymentMethod}
-                        onChange={(newValue) => {
-                            console.log('AP NMI Blocks: Checkbox onChange fired, new value:', newValue);
-                            setSavePaymentMethod(newValue);
-                        }}
-                        __nextHasNoMarginBottom
-                        className="ap-nmi-save-payment-checkbox"
-                    />
-                </div>
-            )}
-            {!settings.save_payment_enabled && console.log('AP NMI Blocks: save_payment_enabled is FALSE, checkbox not rendered')}
         </div>
     );
 };

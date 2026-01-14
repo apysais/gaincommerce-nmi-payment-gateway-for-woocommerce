@@ -58,7 +58,7 @@ class NMI_API_Factory
     {
         //$final_config = array_merge($this->default_config, $config);
         $config = wp_parse_args($this->default_config, $config);
-
+        
         $this->logger->debug('NMI API Factory: Creating payment API instance', [
             'test_mode' => $config['test_mode'] ?? false,
         ]);

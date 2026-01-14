@@ -67,6 +67,7 @@ class NMI_Base
         if (!empty($config)) {
             $this->configure($config);
         }
+        
     }
 
     /**
@@ -123,11 +124,14 @@ class NMI_Base
      */
     public function make_post_request(array $data, int $retry_count = 0)
     {
+        
         // Validate required fields
         $validation_error = $this->validate_request_data($data);
         if ($validation_error) {
             return $validation_error;
         }
+
+        $data = apply_filters('gaincommerce_nmi_api_request_data', $data);
 
         $endpoint = $this->get_api_endpoint();
         
