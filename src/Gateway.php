@@ -602,7 +602,7 @@ class Gateway extends WC_Payment_Gateway
 
                 // Sale - payment completed immediately
                 $order->payment_complete($response['transaction_id']);
-                $order->reduce_order_stock();
+                wc_reduce_stock_levels($order_id);
 
                 // Add order note
                 

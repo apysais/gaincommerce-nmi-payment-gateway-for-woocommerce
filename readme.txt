@@ -3,7 +3,7 @@ Contributors: allan.casilum, gaincommerce
 Tags: nmi, woocommerce, payment gateway, credit card, pci
 Requires at least: 6.8
 Tested up to: 6.9
-Stable tag: 1.8.1
+Stable tag: 1.9.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Requires Plugins: woocommerce
@@ -36,6 +36,7 @@ Merchants gain essential features like the Authorize Now and Capture Later flexi
 <strong>Premium Plugin Version Includes</strong>
 =
 * <strong>ACH Payments</strong> integrated electronic transfers through the ACH network.
+* <strong>Stored Payments</strong> for card or ACH payments in the PCI-compliant Customer Vault.
 
 
 <strong>Important Requirements:</strong>
@@ -118,6 +119,12 @@ Visit <a href="https://www.gaincommerce.com/support" target="_blank">gaincommerc
 
 
 == Changelog ==
+= 1.9.0 =
+* Fix and replace deprecated reduced_stock_qty to wc_reduce_stock_levels
+* Add ability for customers to store payment method for future transactions in card vault by choosing “Save Payment Method” during checkout. Available only in Premium Plugin
+* Choose "Saved Payment Method" stores card account in secure PCI-Compliant environment. Customer can replace card in checkout process by choosing “Save Payment Method”.
+* Test to latest WooCommerce version 10.4.3
+
 = 1.8.1 =
 * Test to latest WordPress 6.9 version.
 * Test to latest WooCommerce 10.4.2
@@ -154,7 +161,4 @@ Visit <a href="https://www.gaincommerce.com/support" target="_blank">gaincommerc
 Initial release of Gain Commerce NMI Payment Gateway for WooCommerce plugin.
 
 = Additional Information Required =
-Visit our support page at <a href="https://www.gaincommerce.com/support" target="_blank">Gain Commerce</a> 
-
-
-
+Visit our support page at <a href="https://www.gaincommerce.com/support" target="_blank">Gain Commerce</a>
