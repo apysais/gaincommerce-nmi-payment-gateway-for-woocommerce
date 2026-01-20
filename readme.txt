@@ -3,7 +3,7 @@ Contributors: allan.casilum, gaincommerce
 Tags: nmi, woocommerce, payment gateway, credit card, pci
 Requires at least: 6.8
 Tested up to: 6.9
-Stable tag: 1.9.0
+Stable tag: 1.10.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Requires Plugins: woocommerce
@@ -119,7 +119,7 @@ Visit <a href="https://www.gaincommerce.com/support" target="_blank">gaincommerc
 
 
 == Changelog ==
-= 1.9.0 =
+= 1.10.0 =
 * Fix and replace deprecated reduced_stock_qty to wc_reduce_stock_levels
 * Add ability for customers to store payment method for future transactions in card vault by choosing “Save Payment Method” during checkout. Available only in Premium Plugin
 * Choose "Saved Payment Method" stores card account in secure PCI-Compliant environment. Customer can replace card in checkout process by choosing “Save Payment Method”.
