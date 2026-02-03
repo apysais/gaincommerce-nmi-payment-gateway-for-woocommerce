@@ -97,23 +97,35 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
 
                     if (response.token) {
                         console.log('AP NMI Blocks: Token generated successfully:', response.token);
-                        console.log('AP NMI Blocks: savePaymentMethod state:', savePaymentMethodRef.current);
-                        console.log('AP NMI Blocks: save_payment_method value being sent:', savePaymentMethodRef.current ? '1' : '0');
-                        promiseRef.current.resolve({
-                            type: emitResponse.responseTypes.SUCCESS,
-                            meta: {
-                                paymentMethodData: {
-                                    payment_token: response.token,
-                                    save_payment_method: savePaymentMethodRef.current ? '1' : '0',
-                                    use_save_payment_method: '0', // New card
+                        
+                        // Check if 3DS is enabled
+                        const threeDSEnabled = typeof ap_nmi_threeds_config !== 'undefined' && ap_nmi_threeds_config.enable_3ds === 'yes';
+                        
+                        if (threeDSEnabled && typeof Gateway !== 'undefined') {
+                            console.log('AP NMI Blocks: 3DS enabled, initiating authentication...');
+                            nmiBlocksHandle3DSForNewCard(response.token, promiseRef.current.resolve, promiseRef.current.reject);
+                            promiseRef.current = null; // Clear ref as 3DS will handle resolution
+                        } else {
+                            // No 3DS, resolve immediately
+                            console.log('AP NMI Blocks: savePaymentMethod state:', savePaymentMethodRef.current);
+                            console.log('AP NMI Blocks: save_payment_method value being sent:', savePaymentMethodRef.current ? '1' : '0');
+                            promiseRef.current.resolve({
+                                type: emitResponse.responseTypes.SUCCESS,
+                                meta: {
+                                    paymentMethodData: {
+                                        payment_token: response.token,
+                                        save_payment_method: savePaymentMethodRef.current ? '1' : '0',
+                                        use_save_payment_method: '0', // New card
+                                    },
                                 },
-                            },
-                        });
-                        console.log('AP NMI Blocks: paymentMethodData sent:', {
-                            payment_token: response.token,
-                            save_payment_method: savePaymentMethodRef.current ? '1' : '0',
-                            use_save_payment_method: '0',
-                        });
+                            });
+                            console.log('AP NMI Blocks: paymentMethodData sent:', {
+                                payment_token: response.token,
+                                save_payment_method: savePaymentMethodRef.current ? '1' : '0',
+                                use_save_payment_method: '0',
+                            });
+                            promiseRef.current = null; // Clear ref
+                        }
                     } else {
                         console.error('AP NMI Blocks: Token generation failed.', response);
                         const errorMessage = response.error?.message || __('Invalid card details. Please check and try again.', 'gaincommerce-nmi-payment-gateway-for-woocommerce');
@@ -122,6 +134,7 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                             type: emitResponse.responseTypes.ERROR,
                             message: errorMessage,
                         });
+                        promiseRef.current = null; // Clear ref
                     }
                     
                     promiseRef.current = null; // Clear the ref after handling
@@ -136,9 +149,35 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
             console.log('AP NMI Blocks: onPaymentSetup triggered.');
             setError(null); // Clear previous errors
 
-            // If using saved card, skip CollectJS and return vault flag
+            // Check if 3DS is enabled
+            const threeDSEnabled = typeof ap_nmi_threeds_config !== 'undefined' && ap_nmi_threeds_config.enable_3ds === 'yes';
+
+            // If using saved card
             if (useSavedCardRef.current && settings.has_saved_card) {
                 console.log('AP NMI Blocks: Using saved payment method.');
+                
+                // If 3DS is enabled for saved cards, authenticate first
+                if (threeDSEnabled && typeof Gateway !== 'undefined') {
+                    console.log('AP NMI Blocks: 3DS enabled for saved card, authenticating...');
+                    
+                    return new Promise((resolve, reject) => {
+                        const customerVaultId = settings.customer_vault_id;
+                        
+                        if (!customerVaultId) {
+                            const errorMessage = __('Customer vault ID not found.', 'gaincommerce-nmi-payment-gateway-for-woocommerce');
+                            setError(errorMessage);
+                            reject({
+                                type: emitResponse.responseTypes.ERROR,
+                                message: errorMessage,
+                            });
+                            return;
+                        }
+                        
+                        nmiBlocksHandle3DSForVault(customerVaultId, resolve, reject);
+                    });
+                }
+                
+                // No 3DS for saved cards, return directly
                 return {
                     type: emitResponse.responseTypes.SUCCESS,
                     meta: {
@@ -192,6 +231,201 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                 CollectJS.startPaymentRequest();
             });
         });
+        
+        // 3DS handler for saved vault cards
+        window.nmiBlocksHandle3DSForVault = function(customerVaultId, resolve, reject) {
+            try {
+                const gateway = Gateway.create(ap_nmi_threeds_config.checkout_public_key);
+                const threeDS = gateway.get3DSecure();
+                
+                const options = {
+                    customerVaultId: customerVaultId,
+                    currency: ap_nmi_threeds_config.currency,
+                    amount: ap_nmi_threeds_config.amount
+                };
+                
+                console.log('AP NMI Blocks: 3DS options for vault:', options);
+                
+                const threeDSecureInterface = threeDS.createUI(options);
+                threeDSecureInterface.start('#threeDSMountPoint');
+                
+                threeDSecureInterface.on('challenge', function(e) {
+                    console.log('AP NMI Blocks: 3DS Challenge for saved card');
+                });
+                
+                threeDSecureInterface.on('complete', function(e) {
+                    console.log('AP NMI Blocks: 3DS complete for saved card:', e);
+                    
+                    resolve({
+                        type: emitResponse.responseTypes.SUCCESS,
+                        meta: {
+                            paymentMethodData: {
+                                use_save_payment_method: '1',
+                                save_payment_method: '0',
+                                cavv: e.cavv,
+                                xid: e.xid,
+                                eci: e.eci,
+                                cardholder_auth: e.cardHolderAuth,
+                                three_ds_version: e.threeDsVersion,
+                                directory_server_id: e.directoryServerId,
+                                cardholder_info: e.cardHolderInfo,
+                            },
+                        },
+                    });
+                });
+                
+                threeDSecureInterface.on('failure', function(e) {
+                    console.error('AP NMI Blocks: 3DS failed for saved card:', e);
+                    
+                    const failureAction = ap_nmi_threeds_config['3ds_failure_action'] || 'decline';
+                    
+                    if (failureAction === 'decline') {
+                        reject({
+                            type: emitResponse.responseTypes.ERROR,
+                            message: __('Card verification failed. Please try a different payment method.', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                        });
+                    } else if (failureAction === 'continue_without_3ds') {
+                        resolve({
+                            type: emitResponse.responseTypes.SUCCESS,
+                            meta: {
+                                paymentMethodData: {
+                                    use_save_payment_method: '1',
+                                    save_payment_method: '0',
+                                },
+                            },
+                        });
+                    } else if (failureAction === 'continue_with_warning') {
+                        resolve({
+                            type: emitResponse.responseTypes.SUCCESS,
+                            meta: {
+                                paymentMethodData: {
+                                    use_save_payment_method: '1',
+                                    save_payment_method: '0',
+                                    threeds_warning: 'authentication_failed',
+                                },
+                            },
+                        });
+                    }
+                });
+                
+                gateway.on('error', function(e) {
+                    console.error('AP NMI Blocks: Gateway error for saved card:', e);
+                    reject({
+                        type: emitResponse.responseTypes.ERROR,
+                        message: __('Payment verification error. Please try again.', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                    });
+                });
+                
+            } catch (error) {
+                console.error('AP NMI Blocks: 3DS initialization error for saved card:', error);
+                reject({
+                    type: emitResponse.responseTypes.ERROR,
+                    message: __('Unable to initialize card verification. Please try again.', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                });
+            }
+        };
+        
+        // 3DS handler for new cards
+        window.nmiBlocksHandle3DSForNewCard = function(paymentToken, resolve, reject) {
+            try {
+                const gateway = Gateway.create(ap_nmi_threeds_config.checkout_public_key);
+                const threeDS = gateway.get3DSecure();
+                
+                const options = {
+                    paymentToken: paymentToken,
+                    currency: ap_nmi_threeds_config.currency,
+                    amount: ap_nmi_threeds_config.amount
+                };
+                
+                // Add billing data
+                if (ap_nmi_threeds_config.billing_data) {
+                    Object.assign(options, ap_nmi_threeds_config.billing_data);
+                }
+                
+                console.log('AP NMI Blocks: 3DS options for new card:', options);
+                
+                const threeDSecureInterface = threeDS.createUI(options);
+                threeDSecureInterface.start('#threeDSMountPoint');
+                
+                threeDSecureInterface.on('challenge', function(e) {
+                    console.log('AP NMI Blocks: 3DS Challenge for new card');
+                });
+                
+                threeDSecureInterface.on('complete', function(e) {
+                    console.log('AP NMI Blocks: 3DS complete for new card:', e);
+                    
+                    resolve({
+                        type: emitResponse.responseTypes.SUCCESS,
+                        meta: {
+                            paymentMethodData: {
+                                payment_token: paymentToken,
+                                save_payment_method: savePaymentMethodRef.current ? '1' : '0',
+                                use_save_payment_method: '0',
+                                cavv: e.cavv,
+                                xid: e.xid,
+                                eci: e.eci,
+                                cardholder_auth: e.cardHolderAuth,
+                                three_ds_version: e.threeDsVersion,
+                                directory_server_id: e.directoryServerId,
+                                cardholder_info: e.cardHolderInfo,
+                            },
+                        },
+                    });
+                });
+                
+                threeDSecureInterface.on('failure', function(e) {
+                    console.error('AP NMI Blocks: 3DS failed for new card:', e);
+                    
+                    const failureAction = ap_nmi_threeds_config['3ds_failure_action'] || 'decline';
+                    
+                    if (failureAction === 'decline') {
+                        reject({
+                            type: emitResponse.responseTypes.ERROR,
+                            message: __('Card verification failed. Please try a different payment method.', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                        });
+                    } else if (failureAction === 'continue_without_3ds') {
+                        resolve({
+                            type: emitResponse.responseTypes.SUCCESS,
+                            meta: {
+                                paymentMethodData: {
+                                    payment_token: paymentToken,
+                                    save_payment_method: savePaymentMethodRef.current ? '1' : '0',
+                                    use_save_payment_method: '0',
+                                },
+                            },
+                        });
+                    } else if (failureAction === 'continue_with_warning') {
+                        resolve({
+                            type: emitResponse.responseTypes.SUCCESS,
+                            meta: {
+                                paymentMethodData: {
+                                    payment_token: paymentToken,
+                                    save_payment_method: savePaymentMethodRef.current ? '1' : '0',
+                                    use_save_payment_method: '0',
+                                    threeds_warning: 'authentication_failed',
+                                },
+                            },
+                        });
+                    }
+                });
+                
+                gateway.on('error', function(e) {
+                    console.error('AP NMI Blocks: Gateway error for new card:', e);
+                    reject({
+                        type: emitResponse.responseTypes.ERROR,
+                        message: __('Payment verification error. Please try again.', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                    });
+                });
+                
+            } catch (error) {
+                console.error('AP NMI Blocks: 3DS initialization error for new card:', error);
+                reject({
+                    type: emitResponse.responseTypes.ERROR,
+                    message: __('Unable to initialize card verification. Please try again.', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                });
+            }
+        };
+        
         return unsubscribe;
     }, [onPaymentSetup, fieldValidity, useSavedCard]);
 
@@ -302,6 +536,30 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                     </div>
                 )}
                 {!settings.save_payment_enabled && console.log('AP NMI Blocks: save_payment_enabled is FALSE, checkbox not rendered')}
+                
+                {/* 3D Secure Mount Point */}
+                <div 
+                    id="threeDSMountPoint" 
+                    style={{ 
+                        marginTop: '15px',
+                        minHeight: '400px',
+                        maxWidth: '100%',
+                        position: 'relative'
+                    }}
+                ></div>
+                
+                {/* 3D Secure Message */}
+                <div 
+                    id="threeDSMessage" 
+                    style={{ 
+                        display: 'none',
+                        padding: '10px',
+                        background: '#f0f0f0',
+                        marginTop: '10px',
+                        borderRadius: '4px',
+                        textAlign: 'center'
+                    }}
+                ></div>
             </div>
         </div>
     );

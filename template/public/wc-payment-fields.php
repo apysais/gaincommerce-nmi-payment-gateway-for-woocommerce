@@ -101,6 +101,12 @@ if (class_exists('GainCommerceNmiEnterprise\\User\\Meta_Save_Payment_Method_CC')
         endif;
     ?>
 
+    <!-- 3D Secure Mount Point -->
+    <div id="threeDSMountPoint" style="margin-top: 15px; min-height: 400px; max-width: 100%;"></div>
+    
+    <!-- 3D Secure Message -->
+    <div id="threeDSMessage" style="display: none; padding: 10px; background: #f0f0f0; margin-top: 10px; border-radius: 4px; text-align: center;"></div>
+
     <?php if ($has_saved_card): ?>
     <script type="text/javascript">
     jQuery(function($) {

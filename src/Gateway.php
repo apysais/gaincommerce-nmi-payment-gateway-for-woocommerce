@@ -528,6 +528,74 @@ class Gateway extends WC_Payment_Gateway
             $gateway_config['use_save_payment_method'] = false;
         }
 
+        // Extract 3DS data if premium plugin is active and 3DS is enabled
+        $threeds_data = [];
+        
+        // Check for 3DS data from blocks checkout
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification handled earlier in the method
+        if (isset($_POST['payment_method_data'])) {
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing
+            $payment_data = $_POST['payment_method_data'];
+            
+            if (isset($payment_data['cavv'])) {
+                $threeds_data['cavv'] = sanitize_text_field(wp_unslash($payment_data['cavv']));
+            }
+            if (isset($payment_data['xid'])) {
+                $threeds_data['xid'] = sanitize_text_field(wp_unslash($payment_data['xid']));
+            }
+            if (isset($payment_data['eci'])) {
+                $threeds_data['eci'] = sanitize_text_field(wp_unslash($payment_data['eci']));
+            }
+            if (isset($payment_data['cardholder_auth'])) {
+                $threeds_data['cardholder_auth'] = sanitize_text_field(wp_unslash($payment_data['cardholder_auth']));
+            }
+            if (isset($payment_data['three_ds_version'])) {
+                $threeds_data['three_ds_version'] = sanitize_text_field(wp_unslash($payment_data['three_ds_version']));
+            }
+            if (isset($payment_data['directory_server_id'])) {
+                $threeds_data['directory_server_id'] = sanitize_text_field(wp_unslash($payment_data['directory_server_id']));
+            }
+            if (isset($payment_data['cardholder_info'])) {
+                $threeds_data['cardholder_info'] = sanitize_text_field(wp_unslash($payment_data['cardholder_info']));
+            }
+        }
+        
+        // Check for 3DS data from legacy checkout
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification handled earlier in the method
+        if (empty($threeds_data) && isset($_POST['threeds_cavv'])) {
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing
+            $threeds_data['cavv'] = sanitize_text_field(wp_unslash($_POST['threeds_cavv']));
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing
+            if (isset($_POST['threeds_xid'])) {
+                $threeds_data['xid'] = sanitize_text_field(wp_unslash($_POST['threeds_xid']));
+            }
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing
+            if (isset($_POST['threeds_eci'])) {
+                $threeds_data['eci'] = sanitize_text_field(wp_unslash($_POST['threeds_eci']));
+            }
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing
+            if (isset($_POST['threeds_cardholder_auth'])) {
+                $threeds_data['cardholder_auth'] = sanitize_text_field(wp_unslash($_POST['threeds_cardholder_auth']));
+            }
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing
+            if (isset($_POST['threeds_version'])) {
+                $threeds_data['three_ds_version'] = sanitize_text_field(wp_unslash($_POST['threeds_version']));
+            }
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing
+            if (isset($_POST['threeds_directory_server_id'])) {
+                $threeds_data['directory_server_id'] = sanitize_text_field(wp_unslash($_POST['threeds_directory_server_id']));
+            }
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing
+            if (isset($_POST['threeds_cardholder_info'])) {
+                $threeds_data['cardholder_info'] = sanitize_text_field(wp_unslash($_POST['threeds_cardholder_info']));
+            }
+        }
+        
+        // Add 3DS data to gateway config if present
+        if (!empty($threeds_data)) {
+            $gateway_config['threeds_data'] = $threeds_data;
+        }
+
         if ($this->send_receipts) {
             $gateway_config['customer_receipt'] = true;
         }

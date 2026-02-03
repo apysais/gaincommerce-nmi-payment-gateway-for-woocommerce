@@ -174,33 +174,186 @@ jQuery(document).ready(function($) {
         if (response.token) {
             console.log('Token generated successfully:', response.token);
             
-            // Add token to form
-            var form = $('form.woocommerce-checkout');
-            if (form.find('input[name="payment_token"]').length === 0) {
-                form.append('<input type="hidden" name="payment_token" value="' + response.token + '">');
+            // Check if 3DS is enabled
+            if (typeof ap_nmi_threeds_config !== 'undefined' && ap_nmi_threeds_config.enable_3ds === 'yes') {
+                console.log('3DS enabled, initiating authentication...');
+                nmiHandle3DSAuthentication(response.token, false);
             } else {
-                form.find('input[name="payment_token"]').val(response.token);
+                // No 3DS, proceed with normal flow
+                nmiSubmitFormWithToken(response.token, {});
             }
-            
-            // Add save payment method checkbox value
-            var savePaymentCheckbox = $('#save_payment_method');
-            var savePayment = savePaymentCheckbox.length > 0 && savePaymentCheckbox.is(':checked') ? '1' : '0';
-            console.log('Save payment checkbox found:', savePaymentCheckbox.length > 0);
-            console.log('Save payment checkbox checked:', savePaymentCheckbox.is(':checked'));
-            console.log('Save payment value:', savePayment);
-            
-            if (form.find('input[name="save_payment_method"]').length === 0) {
-                form.append('<input type="hidden" name="save_payment_method" value="' + savePayment + '">');
-            } else {
-                form.find('input[name="save_payment_method"]').val(savePayment);
-            }
-            
-            // Submit the form
-            form.off('checkout_place_order').submit();
         } else {
             console.error('Token generation failed:', response);
             nmiShowError('Payment processing failed. Please check your card details and try again.');
             nmiEnableSubmitButton();
+        }
+    };
+
+    // Handle 3DS authentication flow
+    window.nmiHandle3DSAuthentication = function(paymentToken, isUsingSavedCard) {
+        if (typeof Gateway === 'undefined') {
+            console.error('Gateway.js not loaded');
+            nmiShowError('3D Secure authentication unavailable. Please try again.');
+            nmiEnableSubmitButton();
+            return;
+        }
+
+        // Show 3DS message
+        nmiShow3DSMessage('Verifying your card...');
+        
+        // Disable place order button
+        $('#place_order').prop('disabled', true);
+        
+        try {
+            const gateway = Gateway.create(ap_nmi_threeds_config.checkout_public_key);
+            const threeDS = gateway.get3DSecure();
+            
+            // Prepare 3DS options
+            let options = {
+                currency: ap_nmi_threeds_config.currency,
+                amount: ap_nmi_threeds_config.amount
+            };
+            
+            if (isUsingSavedCard) {
+                // Using saved payment method from customer vault
+                const customerVaultId = $('input[name="use_save_payment_method"]').val();
+                if (customerVaultId) {
+                    options.customerVaultId = customerVaultId;
+                }
+            } else {
+                // Using new card with payment token
+                options.paymentToken = paymentToken;
+                
+                // Add billing data
+                if (ap_nmi_threeds_config.billing_data) {
+                    Object.assign(options, ap_nmi_threeds_config.billing_data);
+                }
+            }
+            
+            console.log('3DS options:', options);
+            
+            // Create 3DS interface
+            const threeDSecureInterface = threeDS.createUI(options);
+            
+            // Mount to DOM
+            threeDSecureInterface.start('#threeDSMountPoint');
+            
+            // Handle challenge event
+            threeDSecureInterface.on('challenge', function(e) {
+                console.log('3DS Challenge initiated');
+                nmiShow3DSMessage('Please complete the verification...');
+            });
+            
+            // Handle complete event
+            threeDSecureInterface.on('complete', function(e) {
+                console.log('3DS Authentication complete:', e);
+                nmiHide3DSMessage();
+                
+                // Prepare 3DS data
+                const threeDSData = {
+                    cavv: e.cavv,
+                    xid: e.xid,
+                    eci: e.eci,
+                    cardholder_auth: e.cardHolderAuth,
+                    three_ds_version: e.threeDsVersion,
+                    directory_server_id: e.directoryServerId,
+                    cardholder_info: e.cardHolderInfo
+                };
+                
+                // Submit form with token and 3DS data
+                nmiSubmitFormWithToken(paymentToken, threeDSData);
+            });
+            
+            // Handle failure event
+            threeDSecureInterface.on('failure', function(e) {
+                console.error('3DS Authentication failed:', e);
+                nmiHide3DSMessage();
+                
+                const failureAction = ap_nmi_threeds_config['3ds_failure_action'] || 'decline';
+                
+                if (failureAction === 'decline') {
+                    nmiShowError('Card verification failed. Please try a different payment method.');
+                    nmiEnableSubmitButton();
+                } else if (failureAction === 'continue_without_3ds') {
+                    console.log('Continuing without 3DS as per settings');
+                    nmiSubmitFormWithToken(paymentToken, {});
+                } else if (failureAction === 'continue_with_warning') {
+                    console.log('Continuing with warning as per settings');
+                    nmiSubmitFormWithToken(paymentToken, { threeds_warning: 'authentication_failed' });
+                }
+            });
+            
+            // Handle gateway errors
+            gateway.on('error', function(e) {
+                console.error('Gateway.js error:', e);
+                nmiHide3DSMessage();
+                nmiShowError('Payment verification error. Please try again.');
+                nmiEnableSubmitButton();
+            });
+            
+        } catch (error) {
+            console.error('3DS initialization error:', error);
+            nmiHide3DSMessage();
+            nmiShowError('Unable to initialize card verification. Please try again.');
+            nmiEnableSubmitButton();
+        }
+    };
+
+    // Submit form with token and optional 3DS data
+    window.nmiSubmitFormWithToken = function(token, threeDSData) {
+        var form = $('form.woocommerce-checkout');
+        
+        // Add token to form
+        if (form.find('input[name="payment_token"]').length === 0) {
+            form.append('<input type="hidden" name="payment_token" value="' + token + '">');
+        } else {
+            form.find('input[name="payment_token"]').val(token);
+        }
+        
+        // Add 3DS data to form if present
+        if (threeDSData && Object.keys(threeDSData).length > 0) {
+            Object.keys(threeDSData).forEach(function(key) {
+                const fieldName = 'threeds_' + key;
+                const value = threeDSData[key] || '';
+                
+                if (form.find('input[name="' + fieldName + '"]').length === 0) {
+                    form.append('<input type="hidden" name="' + fieldName + '" value="' + value + '">');
+                } else {
+                    form.find('input[name="' + fieldName + '"]').val(value);
+                }
+            });
+        }
+        
+        // Add save payment method checkbox value
+        var savePaymentCheckbox = $('#save_payment_method');
+        var savePayment = savePaymentCheckbox.length > 0 && savePaymentCheckbox.is(':checked') ? '1' : '0';
+        console.log('Save payment checkbox found:', savePaymentCheckbox.length > 0);
+        console.log('Save payment checkbox checked:', savePaymentCheckbox.is(':checked'));
+        console.log('Save payment value:', savePayment);
+        
+        if (form.find('input[name="save_payment_method"]').length === 0) {
+            form.append('<input type="hidden" name="save_payment_method" value="' + savePayment + '">');
+        } else {
+            form.find('input[name="save_payment_method"]').val(savePayment);
+        }
+        
+        // Submit the form
+        form.off('checkout_place_order').submit();
+    };
+
+    // Show 3DS message
+    window.nmiShow3DSMessage = function(message) {
+        var messageDiv = $('#threeDSMessage');
+        if (messageDiv.length) {
+            messageDiv.text(message).show();
+        }
+    };
+
+    // Hide 3DS message
+    window.nmiHide3DSMessage = function() {
+        var messageDiv = $('#threeDSMessage');
+        if (messageDiv.length) {
+            messageDiv.hide();
         }
     };
     
@@ -278,7 +431,42 @@ jQuery(document).ready(function($) {
                 // Clear previous errors
                 $('.woocommerce-error, .nmi-error-message').remove();
                 
-                // Check if CollectJS iframes are loaded
+                // Check if using saved payment method
+                var useSavedCard = $('input[name="use_save_payment_method"]:checked').val() === '1';
+                
+                if (useSavedCard) {
+                    console.log('Using saved payment method');
+                    
+                    // Check if 3DS is enabled for saved cards
+                    if (typeof ap_nmi_threeds_config !== 'undefined' && ap_nmi_threeds_config.enable_3ds === 'yes') {
+                        console.log('3DS enabled for saved card, initiating authentication...');
+                        
+                        // Disable submit button
+                        $('#place_order').prop('disabled', true).text('Processing...');
+                        
+                        // Get customer vault ID from hidden field or data attribute
+                        var customerVaultId = $('input[name="customer_vault_id"]').val();
+                        if (!customerVaultId) {
+                            // Try to get from saved card display element
+                            customerVaultId = $('.ap-nmi-saved-card-info').data('vault-id');
+                        }
+                        
+                        if (customerVaultId) {
+                            nmiHandle3DSAuthenticationForVault(customerVaultId);
+                        } else {
+                            console.error('Customer vault ID not found');
+                            nmiShowError('Unable to process saved payment method. Please use a new card.');
+                            nmiEnableSubmitButton();
+                        }
+                    } else {
+                        // No 3DS for saved cards, submit directly
+                        $(this).off('checkout_place_order').submit();
+                    }
+                    
+                    return false;
+                }
+                
+                // Using new card - check if CollectJS iframes are loaded
                 var iframes = $('.CollectJSInlineIframe');
                 if (iframes.length < 3) {
                     nmiShowError('Payment form is not ready. Please refresh the page and try again.');
@@ -327,5 +515,119 @@ jQuery(document).ready(function($) {
             
             return true; // Allow other payment methods to proceed normally
         });
+        
+        // Handle 3DS for saved vault cards
+        window.nmiHandle3DSAuthenticationForVault = function(customerVaultId) {
+            if (typeof Gateway === 'undefined') {
+                console.error('Gateway.js not loaded');
+                nmiShowError('3D Secure authentication unavailable. Please try again.');
+                nmiEnableSubmitButton();
+                return;
+            }
+
+            // Show 3DS message
+            nmiShow3DSMessage('Verifying your saved card...');
+            
+            try {
+                const gateway = Gateway.create(ap_nmi_threeds_config.checkout_public_key);
+                const threeDS = gateway.get3DSecure();
+                
+                // Prepare 3DS options for customer vault
+                const options = {
+                    customerVaultId: customerVaultId,
+                    currency: ap_nmi_threeds_config.currency,
+                    amount: ap_nmi_threeds_config.amount
+                };
+                
+                console.log('3DS options for vault:', options);
+                
+                // Create 3DS interface
+                const threeDSecureInterface = threeDS.createUI(options);
+                
+                // Mount to DOM
+                threeDSecureInterface.start('#threeDSMountPoint');
+                
+                // Handle challenge event
+                threeDSecureInterface.on('challenge', function(e) {
+                    console.log('3DS Challenge initiated for saved card');
+                    nmiShow3DSMessage('Please complete the verification...');
+                });
+                
+                // Handle complete event
+                threeDSecureInterface.on('complete', function(e) {
+                    console.log('3DS Authentication complete for saved card:', e);
+                    nmiHide3DSMessage();
+                    
+                    // Prepare 3DS data
+                    const threeDSData = {
+                        cavv: e.cavv,
+                        xid: e.xid,
+                        eci: e.eci,
+                        cardholder_auth: e.cardHolderAuth,
+                        three_ds_version: e.threeDsVersion,
+                        directory_server_id: e.directoryServerId,
+                        cardholder_info: e.cardHolderInfo
+                    };
+                    
+                    // Submit form with 3DS data (no token needed for vault)
+                    nmiSubmitFormWithVaultAndThreeDS(threeDSData);
+                });
+                
+                // Handle failure event
+                threeDSecureInterface.on('failure', function(e) {
+                    console.error('3DS Authentication failed for saved card:', e);
+                    nmiHide3DSMessage();
+                    
+                    const failureAction = ap_nmi_threeds_config['3ds_failure_action'] || 'decline';
+                    
+                    if (failureAction === 'decline') {
+                        nmiShowError('Card verification failed. Please try a different payment method.');
+                        nmiEnableSubmitButton();
+                    } else if (failureAction === 'continue_without_3ds') {
+                        console.log('Continuing without 3DS as per settings');
+                        $('form.woocommerce-checkout').off('checkout_place_order').submit();
+                    } else if (failureAction === 'continue_with_warning') {
+                        console.log('Continuing with warning as per settings');
+                        nmiSubmitFormWithVaultAndThreeDS({ threeds_warning: 'authentication_failed' });
+                    }
+                });
+                
+                // Handle gateway errors
+                gateway.on('error', function(e) {
+                    console.error('Gateway.js error for saved card:', e);
+                    nmiHide3DSMessage();
+                    nmiShowError('Payment verification error. Please try again.');
+                    nmiEnableSubmitButton();
+                });
+                
+            } catch (error) {
+                console.error('3DS initialization error for saved card:', error);
+                nmiHide3DSMessage();
+                nmiShowError('Unable to initialize card verification. Please try again.');
+                nmiEnableSubmitButton();
+            }
+        };
+        
+        // Submit form with vault and 3DS data
+        window.nmiSubmitFormWithVaultAndThreeDS = function(threeDSData) {
+            var form = $('form.woocommerce-checkout');
+            
+            // Add 3DS data to form if present
+            if (threeDSData && Object.keys(threeDSData).length > 0) {
+                Object.keys(threeDSData).forEach(function(key) {
+                    const fieldName = 'threeds_' + key;
+                    const value = threeDSData[key] || '';
+                    
+                    if (form.find('input[name="' + fieldName + '"]').length === 0) {
+                        form.append('<input type="hidden" name="' + fieldName + '" value="' + value + '">');
+                    } else {
+                        form.find('input[name="' + fieldName + '"]').val(value);
+                    }
+                });
+            }
+            
+            // Submit the form
+            form.off('checkout_place_order').submit();
+        };
     }
 });
