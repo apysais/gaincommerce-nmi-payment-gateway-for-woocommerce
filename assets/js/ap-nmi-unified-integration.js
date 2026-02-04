@@ -205,7 +205,7 @@ jQuery(document).ready(function($) {
         $('#place_order').prop('disabled', true);
         
         try {
-            const gateway = Gateway.create(ap_nmi_threeds_config.checkout_public_key);
+            const gateway = Gateway.create(ap_nmi_threeds_config.public_key);
             const threeDS = gateway.get3DSecure();
             
             // Prepare 3DS options
@@ -228,6 +228,9 @@ jQuery(document).ready(function($) {
                 if (ap_nmi_threeds_config.billing_data) {
                     Object.assign(options, ap_nmi_threeds_config.billing_data);
                 }
+                
+                // Add device data to prevent timeouts (per latest NMI docs)
+                Object.assign(options, nmiCollectDeviceData());
             }
             
             console.log('3DS options:', options);
@@ -529,7 +532,7 @@ jQuery(document).ready(function($) {
             nmiShow3DSMessage('Verifying your saved card...');
             
             try {
-                const gateway = Gateway.create(ap_nmi_threeds_config.checkout_public_key);
+                const gateway = Gateway.create(ap_nmi_threeds_config.public_key);
                 const threeDS = gateway.get3DSecure();
                 
                 // Prepare 3DS options for customer vault
@@ -538,6 +541,9 @@ jQuery(document).ready(function($) {
                     currency: ap_nmi_threeds_config.currency,
                     amount: ap_nmi_threeds_config.amount
                 };
+                
+                // Add device data to prevent timeouts (per latest NMI docs)
+                Object.assign(options, nmiCollectDeviceData());
                 
                 console.log('3DS options for vault:', options);
                 
@@ -626,6 +632,36 @@ jQuery(document).ready(function($) {
                 });
             }
             
+
+        /**
+         * Collect device data for 3DS authentication
+         * Per latest NMI docs, helps prevent timeouts
+         * 
+         * @returns {Object} Device data fields
+         */
+        function nmiCollectDeviceData() {
+            let browserJavaEnabled = 'false';
+            
+            // window.navigator.javaEnabled() is deprecated, use try/catch
+            try {
+                if (navigator.javaEnabled && typeof navigator.javaEnabled === 'function') {
+                    browserJavaEnabled = navigator.javaEnabled() ? 'true' : 'false';
+                }
+            } catch(e) {
+                browserJavaEnabled = 'false';
+            }
+            
+            return {
+                browserJavaEnabled: browserJavaEnabled,
+                browserJavascriptEnabled: 'true',
+                browserLanguage: window.navigator.language || window.navigator.userLanguage || 'en-US',
+                browserColorDepth: String(window.screen.colorDepth || '24'),
+                browserScreenHeight: String(window.screen.height || '768'),
+                browserScreenWidth: String(window.screen.width || '1024'),
+                browserTimeZone: String(new Date().getTimezoneOffset()),
+                deviceChannel: 'Browser'
+            };
+        }
             // Submit the form
             form.off('checkout_place_order').submit();
         };

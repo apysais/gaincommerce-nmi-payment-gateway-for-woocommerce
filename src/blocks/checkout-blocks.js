@@ -235,7 +235,7 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
         // 3DS handler for saved vault cards
         window.nmiBlocksHandle3DSForVault = function(customerVaultId, resolve, reject) {
             try {
-                const gateway = Gateway.create(ap_nmi_threeds_config.checkout_public_key);
+                const gateway = Gateway.create(ap_nmi_threeds_config.public_key);
                 const threeDS = gateway.get3DSecure();
                 
                 const options = {
@@ -243,6 +243,9 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                     currency: ap_nmi_threeds_config.currency,
                     amount: ap_nmi_threeds_config.amount
                 };
+                
+                // Add device data to prevent timeouts (per latest NMI docs)
+                Object.assign(options, nmiBlocksCollectDeviceData());
                 
                 console.log('AP NMI Blocks: 3DS options for vault:', options);
                 
@@ -328,7 +331,7 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
         // 3DS handler for new cards
         window.nmiBlocksHandle3DSForNewCard = function(paymentToken, resolve, reject) {
             try {
-                const gateway = Gateway.create(ap_nmi_threeds_config.checkout_public_key);
+                const gateway = Gateway.create(ap_nmi_threeds_config.public_key);
                 const threeDS = gateway.get3DSecure();
                 
                 const options = {
@@ -341,6 +344,9 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                 if (ap_nmi_threeds_config.billing_data) {
                     Object.assign(options, ap_nmi_threeds_config.billing_data);
                 }
+                
+                // Add device data to prevent timeouts (per latest NMI docs)
+                Object.assign(options, nmiBlocksCollectDeviceData());
                 
                 console.log('AP NMI Blocks: 3DS options for new card:', options);
                 
@@ -607,6 +613,36 @@ const apNmiPaymentMethod = {
 };
 
 // Register the payment method with WooCommerce Blocks
+
+/**
+ * Collect device data for 3DS authentication in blocks checkout
+ * Per latest NMI docs, helps prevent timeouts
+ * 
+ * @returns {Object} Device data fields
+ */
+function nmiBlocksCollectDeviceData() {
+    let browserJavaEnabled = 'false';
+    
+    // window.navigator.javaEnabled() is deprecated, use try/catch
+    try {
+        if (navigator.javaEnabled && typeof navigator.javaEnabled === 'function') {
+            browserJavaEnabled = navigator.javaEnabled() ? 'true' : 'false';
+        }
+    } catch(e) {
+        browserJavaEnabled = 'false';
+    }
+    
+    return {
+        browserJavaEnabled: browserJavaEnabled,
+        browserJavascriptEnabled: 'true',
+        browserLanguage: window.navigator.language || window.navigator.userLanguage || 'en-US',
+        browserColorDepth: String(window.screen.colorDepth || '24'),
+        browserScreenHeight: String(window.screen.height || '768'),
+        browserScreenWidth: String(window.screen.width || '1024'),
+        browserTimeZone: String(new Date().getTimezoneOffset()),
+        deviceChannel: 'Browser'
+    };
+}
 console.log('AP NMI Blocks: Registering payment method...');
 registerPaymentMethod(apNmiPaymentMethod);
 console.log('AP NMI Blocks: Payment method registered successfully');
