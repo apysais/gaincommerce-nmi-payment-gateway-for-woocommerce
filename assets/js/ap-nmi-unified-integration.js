@@ -290,7 +290,15 @@ jQuery(document).ready(function($) {
             gateway.on('error', function(e) {
                 console.error('Gateway.js error:', e);
                 nmiHide3DSMessage();
-                nmiShowError('Payment verification error. Please try again.');
+                
+                // Check if 3DS is inactive on merchant account
+                if (e.message && e.message.includes('3DSecure is inactive')) {
+                    console.error('NMI 3DS Error: 3-D Secure is not enabled on your NMI merchant account');
+                    nmiShowError('Secure payment verification is currently unavailable. Please contact the store or try a different payment method.');
+                } else {
+                    nmiShowError('Payment verification error. Please try again.');
+                }
+                
                 nmiEnableSubmitButton();
             });
             
@@ -602,7 +610,15 @@ jQuery(document).ready(function($) {
                 gateway.on('error', function(e) {
                     console.error('Gateway.js error for saved card:', e);
                     nmiHide3DSMessage();
-                    nmiShowError('Payment verification error. Please try again.');
+                    
+                    // Check if 3DS is inactive on merchant account
+                    if (e.message && e.message.includes('3DSecure is inactive')) {
+                        console.error('NMI 3DS Error: 3-D Secure is not enabled on your NMI merchant account');
+                        nmiShowError('Secure payment verification is currently unavailable. Please contact the store or try a different payment method.');
+                    } else {
+                        nmiShowError('Payment verification error. Please try again.');
+                    }
+                    
                     nmiEnableSubmitButton();
                 });
                 

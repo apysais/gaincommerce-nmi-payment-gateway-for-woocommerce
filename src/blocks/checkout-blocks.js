@@ -103,7 +103,7 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                         
                         if (threeDSEnabled && typeof Gateway !== 'undefined') {
                             console.log('AP NMI Blocks: 3DS enabled, initiating authentication...');
-                            nmiBlocksHandle3DSForNewCard(response.token, promiseRef.current.resolve, promiseRef.current.reject);
+                            nmiBlocksHandle3DSForNewCard(response.token, promiseRef.current.resolve, promiseRef.current.reject, setError);
                             promiseRef.current = null; // Clear ref as 3DS will handle resolution
                         } else {
                             // No 3DS, resolve immediately
@@ -173,7 +173,7 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                             return;
                         }
                         
-                        nmiBlocksHandle3DSForVault(customerVaultId, resolve, reject);
+                        nmiBlocksHandle3DSForVault(customerVaultId, resolve, reject, setError);
                     });
                 }
                 
@@ -232,9 +232,23 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
             });
         });
         
+        // Track current 3DS instance globally to allow unmounting
+        window.currentNmi3DSInstance = null;
+        
         // 3DS handler for saved vault cards
-        window.nmiBlocksHandle3DSForVault = function(customerVaultId, resolve, reject) {
+        window.nmiBlocksHandle3DSForVault = function(customerVaultId, resolve, reject, setError) {
             try {
+                // Unmount any existing 3DS instance first
+                if (window.currentNmi3DSInstance) {
+                    console.log('AP NMI Blocks: Unmounting existing 3DS instance');
+                    try {
+                        window.currentNmi3DSInstance.unmount();
+                    } catch (e) {
+                        console.warn('AP NMI Blocks: Error unmounting 3DS instance:', e);
+                    }
+                    window.currentNmi3DSInstance = null;
+                }
+                
                 const gateway = Gateway.create(ap_nmi_threeds_config.public_key);
                 const threeDS = gateway.get3DSecure();
                 
@@ -250,6 +264,7 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                 console.log('AP NMI Blocks: 3DS options for vault:', options);
                 
                 const threeDSecureInterface = threeDS.createUI(options);
+                window.currentNmi3DSInstance = threeDSecureInterface; // Track instance
                 threeDSecureInterface.start('#threeDSMountPoint');
                 
                 threeDSecureInterface.on('challenge', function(e) {
@@ -313,9 +328,30 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                 
                 gateway.on('error', function(e) {
                     console.error('AP NMI Blocks: Gateway error for saved card:', e);
+                    
+                    // Check if 3DS is inactive on merchant account
+                    let errorMessage = __('Payment verification error. Please try again.', 'gaincommerce-nmi-payment-gateway-for-woocommerce');
+                    
+                    if (e.message && e.message.includes('3DSecure is inactive')) {
+                        console.error('NMI 3DS Error: 3-D Secure is not enabled on your NMI merchant account');
+                        errorMessage = __('Secure payment verification is currently unavailable. Please contact the store or try a different payment method.', 'gaincommerce-nmi-payment-gateway-for-woocommerce');
+                    }
+                    
+                    console.log('AP NMI Blocks: Calling setError for saved card with message:', errorMessage);
+                    
+                    // Display error directly in DOM
+                    const errorContainer = document.querySelector('.wc-block-components-notices');
+                    if (errorContainer) {
+                        errorContainer.innerHTML = `<div class="wc-block-components-notice-banner is-error" role="alert"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path d="M12 3.2c-4.8 0-8.8 3.9-8.8 8.8 0 4.8 3.9 8.8 8.8 8.8 4.8 0 8.8-3.9 8.8-8.8 0-4.8-4-8.8-8.8-8.8zm0 16c-4 0-7.2-3.3-7.2-7.2C4.8 8 8 4.8 12 4.8s7.2 3.3 7.2 7.2c0 4-3.2 7.2-7.2 7.2zM11 17h2v-6h-2v6zm0-8h2V7h-2v2z"></path></svg><div class="wc-block-components-notice-banner__content">${errorMessage}</div></div>`;
+                    }
+                    
+                    // Also show an alert as fallback
+                    alert(errorMessage);
+                    
+                    setError(errorMessage);
                     reject({
                         type: emitResponse.responseTypes.ERROR,
-                        message: __('Payment verification error. Please try again.', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                        message: errorMessage,
                     });
                 });
                 
@@ -329,8 +365,19 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
         };
         
         // 3DS handler for new cards
-        window.nmiBlocksHandle3DSForNewCard = function(paymentToken, resolve, reject) {
+        window.nmiBlocksHandle3DSForNewCard = function(paymentToken, resolve, reject, setError) {
             try {
+                // Unmount any existing 3DS instance first
+                if (window.currentNmi3DSInstance) {
+                    console.log('AP NMI Blocks: Unmounting existing 3DS instance');
+                    try {
+                        window.currentNmi3DSInstance.unmount();
+                    } catch (e) {
+                        console.warn('AP NMI Blocks: Error unmounting 3DS instance:', e);
+                    }
+                    window.currentNmi3DSInstance = null;
+                }
+                
                 const gateway = Gateway.create(ap_nmi_threeds_config.public_key);
                 const threeDS = gateway.get3DSecure();
                 
@@ -351,6 +398,7 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                 console.log('AP NMI Blocks: 3DS options for new card:', options);
                 
                 const threeDSecureInterface = threeDS.createUI(options);
+                window.currentNmi3DSInstance = threeDSecureInterface; // Track instance
                 threeDSecureInterface.start('#threeDSMountPoint');
                 
                 threeDSecureInterface.on('challenge', function(e) {
@@ -417,9 +465,30 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                 
                 gateway.on('error', function(e) {
                     console.error('AP NMI Blocks: Gateway error for new card:', e);
+                    
+                    // Check if 3DS is inactive on merchant account
+                    let errorMessage = __('Payment verification error. Please try again.', 'gaincommerce-nmi-payment-gateway-for-woocommerce');
+                    
+                    if (e.message && e.message.includes('3DSecure is inactive')) {
+                        console.error('NMI 3DS Error: 3-D Secure is not enabled on your NMI merchant account');
+                        errorMessage = __('Secure payment verification is currently unavailable. Please contact the store or try a different payment method.', 'gaincommerce-nmi-payment-gateway-for-woocommerce');
+                    }
+                    
+                    console.log('AP NMI Blocks: Calling setError for new card with message:', errorMessage);
+                    
+                    // Display error directly in DOM
+                    const errorContainer = document.querySelector('.wc-block-components-notices');
+                    if (errorContainer) {
+                        errorContainer.innerHTML = `<div class="wc-block-components-notice-banner is-error" role="alert"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path d="M12 3.2c-4.8 0-8.8 3.9-8.8 8.8 0 4.8 3.9 8.8 8.8 8.8 4.8 0 8.8-3.9 8.8-8.8 0-4.8-4-8.8-8.8-8.8zm0 16c-4 0-7.2-3.3-7.2-7.2C4.8 8 8 4.8 12 4.8s7.2 3.3 7.2 7.2c0 4-3.2 7.2-7.2 7.2zM11 17h2v-6h-2v6zm0-8h2V7h-2v2z"></path></svg><div class="wc-block-components-notice-banner__content">${errorMessage}</div></div>`;
+                    }
+                    
+                    // Also show an alert as fallback
+                    alert(errorMessage);
+                    
+                    setError(errorMessage);
                     reject({
                         type: emitResponse.responseTypes.ERROR,
-                        message: __('Payment verification error. Please try again.', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                        message: errorMessage,
                     });
                 });
                 
@@ -438,7 +507,19 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
     // Render the form
     return (
         <div className="ap-nmi-payment-form-blocks">
-            {error && <div className="woocommerce-error" role="alert">{error}</div>}
+            {error && (
+                <div className="woocommerce-error" role="alert" style={{
+                    backgroundColor: '#e2401c',
+                    color: '#fff',
+                    padding: '1em',
+                    marginBottom: '1em',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    lineHeight: '1.5'
+                }}>
+                    {error}
+                </div>
+            )}
 
             {/* Saved Payment Method Selection */}
             {settings.has_saved_card && settings.saved_card_details && (
