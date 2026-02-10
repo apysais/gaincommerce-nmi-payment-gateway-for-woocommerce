@@ -253,31 +253,14 @@ class Gateway extends WC_Payment_Gateway
                 'label' => __('Use NMI Pathfinder Sandbox Environment', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
                 'default' => 'no',
                 'description' => __(
-                    '<strong>For Pathfinder evaluation only.</strong> Uses sandbox.nmi.com endpoints with separate API keys. ' .
-                    'This is different from "Test Mode" above - regular testing uses the production endpoint with test credentials. ' .
-                    'Only enable if you have NMI Pathfinder sandbox credentials.',
+                    '<strong>For Pathfinder evaluation only.</strong><br>' .
+                    '• Uses sandbox.nmi.com API endpoint<br>' .
+                    '• Enter your Pathfinder keys in the <strong>Public Key</strong> and <strong>Private Key</strong> fields above<br>' .
+                    '• <strong>⚠️ 3DS is NOT supported in Pathfinder mode</strong> - disable "Enable 3-D Secure" below when testing with Pathfinder<br>' .
+                    '• <strong>⚠️ Customer Vault (Save Payment) is NOT supported in Pathfinder mode</strong><br>' .
+                    '• For full testing with 3DS and saved payment methods, use regular Test Mode (not Pathfinder) with your live merchant account credentials',
                     'gaincommerce-nmi-payment-gateway-for-woocommerce'
                 ),
-                'desc_tip' => false,
-            ],
-            'pathfinder_public_key' => [
-                'title' => __('Pathfinder Public Key', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
-                'type' => 'text',
-                'description' => __(
-                    'Your NMI Pathfinder sandbox public key (NOT used for CollectJS or 3DS - those always use Gateway public key above).',
-                    'gaincommerce-nmi-payment-gateway-for-woocommerce'
-                ),
-                'default' => '',
-                'desc_tip' => false,
-            ],
-            'pathfinder_private_key' => [
-                'title' => __('Pathfinder Private Key', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
-                'type' => 'text',
-                'description' => __(
-                    'Your NMI Pathfinder sandbox private key. Used for API transactions when Pathfinder mode is enabled.',
-                    'gaincommerce-nmi-payment-gateway-for-woocommerce'
-                ),
-                'default' => '',
                 'desc_tip' => false,
             ],
             'pathfinder_merchant_email' => [

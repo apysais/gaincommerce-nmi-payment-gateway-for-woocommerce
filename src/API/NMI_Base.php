@@ -91,26 +91,22 @@ class NMI_Base
     /**
      * Get the effective private key based on Pathfinder mode
      *
-     * Returns Pathfinder private key if Pathfinder mode is enabled,
-     * otherwise returns the regular Gateway private key.
+     * Returns the regular private key (which will contain Pathfinder keys
+     * when Pathfinder mode is enabled).
      *
      * @param array $config Configuration array
-     * @return string The appropriate private key
+     * @return string The private key
      */
     protected function get_effective_private_key(array $config): string
     {
         if ($this->is_pathfinder_enabled()) {
-            $settings = get_option('woocommerce_' . AP_NMI_WC_GATEWAY_ID . '_settings', []);
-            $pathfinder_key = $settings['pathfinder_private_key'] ?? '';
-            
-            $this->logger->info('Using Pathfinder private key', [
-                'has_pathfinder_key' => !empty($pathfinder_key),
+            $this->logger->info('Pathfinder mode enabled - using private key from settings', [
+                'has_private_key' => !empty($config['private_key']),
             ]);
-            
-            return $pathfinder_key;
+        } else {
+            $this->logger->debug('Gateway mode - using private key from settings');
         }
         
-        $this->logger->debug('Using Gateway private key');
         return $config['private_key'] ?? '';
     }
 
