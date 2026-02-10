@@ -247,6 +247,50 @@ class Gateway extends WC_Payment_Gateway
                 'default' => '',
                 'desc_tip' => false,
             ],
+            'pathfinder_sandbox' => [
+                'title' => __('Pathfinder Sandbox Mode', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                'type' => 'checkbox',
+                'label' => __('Use NMI Pathfinder Sandbox Environment', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                'default' => 'no',
+                'description' => __(
+                    '<strong>For Pathfinder evaluation only.</strong> Uses sandbox.nmi.com endpoints with separate API keys. ' .
+                    'This is different from "Test Mode" above - regular testing uses the production endpoint with test credentials. ' .
+                    'Only enable if you have NMI Pathfinder sandbox credentials.',
+                    'gaincommerce-nmi-payment-gateway-for-woocommerce'
+                ),
+                'desc_tip' => false,
+            ],
+            'pathfinder_public_key' => [
+                'title' => __('Pathfinder Public Key', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                'type' => 'text',
+                'description' => __(
+                    'Your NMI Pathfinder sandbox public key (NOT used for CollectJS or 3DS - those always use Gateway public key above).',
+                    'gaincommerce-nmi-payment-gateway-for-woocommerce'
+                ),
+                'default' => '',
+                'desc_tip' => false,
+            ],
+            'pathfinder_private_key' => [
+                'title' => __('Pathfinder Private Key', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                'type' => 'text',
+                'description' => __(
+                    'Your NMI Pathfinder sandbox private key. Used for API transactions when Pathfinder mode is enabled.',
+                    'gaincommerce-nmi-payment-gateway-for-woocommerce'
+                ),
+                'default' => '',
+                'desc_tip' => false,
+            ],
+            'pathfinder_merchant_email' => [
+                'title' => __('Pathfinder Merchant Email', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                'type' => 'email',
+                'description' => __(
+                    'Email address registered with your NMI Pathfinder sandbox account. ' .
+                    'This email will be used for all test transactions to bypass sandbox email restrictions.',
+                    'gaincommerce-nmi-payment-gateway-for-woocommerce'
+                ),
+                'default' => '',
+                'desc_tip' => true,
+            ],
             'descriptor' => [
                 'title' => __('Billing Descriptor', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
                 'type' => 'text',
