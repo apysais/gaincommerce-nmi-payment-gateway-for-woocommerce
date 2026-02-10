@@ -175,8 +175,15 @@ class NMI_Payment_API extends NMI_Base
             'amount' => number_format((float) $payment_data['amount'], 2, '.', ''),
         ];
 
-        // Check if using payment token (Collect.JS) or traditional card data
-        if (!empty($payment_data['payment_token'])) {
+        // Check if using customer vault (saved payment method)
+        if (!empty($payment_data['customer_vault_id'])) {
+            // Using customer vault - only customer_vault_id is needed
+            $data['customer_vault_id'] = $payment_data['customer_vault_id'];
+            
+            Logger::get_instance()->info('NMI Payment API: Using saved payment method', [
+                'customer_vault_id' => $payment_data['customer_vault_id'],
+            ]);
+        } elseif (!empty($payment_data['payment_token'])) {
             // Using Collect.JS payment token
             $data['payment_token'] = $payment_data['payment_token'];
         } else {
