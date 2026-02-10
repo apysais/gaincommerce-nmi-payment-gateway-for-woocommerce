@@ -71,6 +71,50 @@ class NMI_Base
     }
 
     /**
+     * Check if Pathfinder sandbox mode is enabled
+     *
+     * @return bool True if Pathfinder sandbox is enabled
+     */
+    protected function is_pathfinder_enabled(): bool
+    {
+        $settings = get_option('woocommerce_' . AP_NMI_WC_GATEWAY_ID . '_settings', []);
+        $enabled = isset($settings['pathfinder_sandbox']) && 'yes' === $settings['pathfinder_sandbox'];
+        
+        $this->logger->debug('Pathfinder sandbox check', [
+            'pathfinder_sandbox_setting' => isset($settings['pathfinder_sandbox']) ? $settings['pathfinder_sandbox'] : 'NOT SET',
+            'is_enabled' => $enabled ? 'YES' : 'NO',
+        ]);
+        
+        return $enabled;
+    }
+
+    /**
+     * Get the effective private key based on Pathfinder mode
+     *
+     * Returns Pathfinder private key if Pathfinder mode is enabled,
+     * otherwise returns the regular Gateway private key.
+     *
+     * @param array $config Configuration array
+     * @return string The appropriate private key
+     */
+    protected function get_effective_private_key(array $config): string
+    {
+        if ($this->is_pathfinder_enabled()) {
+            $settings = get_option('woocommerce_' . AP_NMI_WC_GATEWAY_ID . '_settings', []);
+            $pathfinder_key = $settings['pathfinder_private_key'] ?? '';
+            
+            $this->logger->info('Using Pathfinder private key', [
+                'has_pathfinder_key' => !empty($pathfinder_key),
+            ]);
+            
+            return $pathfinder_key;
+        }
+        
+        $this->logger->debug('Using Gateway private key');
+        return $config['private_key'] ?? '';
+    }
+
+    /**
      * Configure the API client
      *
      * @param array $config Configuration array
@@ -78,34 +122,59 @@ class NMI_Base
      */
     public function configure(array $config): void
     {
+        // CollectJS always uses Gateway public key, not Pathfinder key
         $this->public_key = $config['public_key'] ?? '';
-        $this->private_key = $config['private_key'] ?? '';
+        
+        // API uses Pathfinder private key when enabled, otherwise Gateway private key
+        $this->private_key = $this->get_effective_private_key($config);
         $this->test_mode = $config['test_mode'] ?? false;
+
+        $is_pathfinder = $this->is_pathfinder_enabled();
 
         // Log configuration details for debugging
         $this->logger->info('NMI API: Client configured', [
             'test_mode' => $this->test_mode,
+            'pathfinder_mode' => $is_pathfinder ? 'YES' : 'NO',
             'has_public_key' => !empty($this->public_key),
             'has_private_key' => !empty($this->private_key),
-            'mode_type' => $this->test_mode ? 'SANDBOX/TEST' : 'LIVE/PRODUCTION',
-            'endpoint' => self::API_URL,
+            'mode_type' => $is_pathfinder ? 'PATHFINDER SANDBOX' : ($this->test_mode ? 'GATEWAY TEST' : 'GATEWAY LIVE'),
+            'endpoint' => $this->get_api_endpoint(),
         ]);
 
         // Validate that we have the required keys for the current mode
         if (empty($this->private_key)) {
-            $mode_label = $this->test_mode ? 'test' : 'live';
+            $mode_label = $is_pathfinder ? 'Pathfinder' : ($this->test_mode ? 'test' : 'live');
             $this->logger->error("NMI API: Missing {$mode_label} private key for {$mode_label} mode");
         }
     }
 
     /**
-     * Get the appropriate API endpoint based on test mode
+     * Get the appropriate API endpoint based on Pathfinder and test mode
+     *
+     * Priority:
+     * 1. Pathfinder sandbox mode: sandbox.nmi.com
+     * 2. Premium plugin filter override
+     * 3. Default production: secure.nmi.com
      *
      * @return string
      */
     protected function get_api_endpoint(): string
     {
+        // Check Pathfinder mode first (highest priority)
+        if ($this->is_pathfinder_enabled()) {
+            $pathfinder_url = 'https://sandbox.nmi.com/api/transact.php';
+            
+            $this->logger->info('Using Pathfinder sandbox endpoint', [
+                'endpoint' => $pathfinder_url,
+            ]);
+            
+            return $pathfinder_url;
+        }
+
         $base_url = self::API_URL;
+
+        // Allow premium plugins to override endpoint (e.g., for other custom environments)
+        $base_url = apply_filters('gaincommerce_nmi_api_endpoint', $base_url, $this->test_mode);
 
         // Add private key as security_key query parameter as required by NMI
         if (!empty($this->private_key)) {

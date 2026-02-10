@@ -7,6 +7,8 @@ if ( ! defined( 'WPINC' ) ) {
 add_action('wp_enqueue_scripts', function(){
 	$gateway_settings = get_option(AP_NMI_WC_GATEWAY_SETTINGS_ID);
 
+	// Always use production CollectJS URL (tokenization library)
+	// The API key determines which environment tokens are valid in
 	wp_register_script(
 		'nmi-collectjs',
 		'https://secure.nmi.com/token/Collect.js',
@@ -45,11 +47,9 @@ add_filter('script_loader_tag', function($tag, $handle) {
 	$gateway_settings = get_option(AP_NMI_WC_GATEWAY_SETTINGS_ID);
 
 	if ('nmi-collectjs' === $handle) {
-		// Add your tokenization key here
-		$key = $gateway_settings['public_key'];
 		$tag = str_replace(
 			'src="https://secure.nmi.com/token/Collect.js?ver=' . AP_NMI_PAYMENT_GATEWAY_VERSION,
-			'src="https://secure.nmi.com/token/Collect.js" data-tokenization-key="' . esc_attr($key) . '"',
+			'src="https://secure.nmi.com/token/Collect.js" data-tokenization-key="' . esc_attr($gateway_settings['public_key']) . '"',
 			$tag
 		);
 	}

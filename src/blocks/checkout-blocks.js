@@ -235,6 +235,46 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
         // Track current 3DS instance globally to allow unmounting
         window.currentNmi3DSInstance = null;
         
+        /**
+         * Helper function to safely add 3DS fields to payment data
+         * Only includes fields that are strings and not empty/null
+         * This prevents REST API type validation errors
+         */
+        window.nmiBlocksSafe3DSData = function(threeDSResponse) {
+            const data = {};
+            
+            // Only add fields if they are strings and not empty
+            if (typeof threeDSResponse.cavv === 'string' && threeDSResponse.cavv) {
+                data.cavv = threeDSResponse.cavv;
+            }
+            if (typeof threeDSResponse.xid === 'string' && threeDSResponse.xid) {
+                data.xid = threeDSResponse.xid;
+            }
+            if (typeof threeDSResponse.eci === 'string' && threeDSResponse.eci) {
+                data.eci = threeDSResponse.eci;
+            }
+            if (typeof threeDSResponse.cardHolderAuth === 'string' && threeDSResponse.cardHolderAuth) {
+                data.cardholder_auth = threeDSResponse.cardHolderAuth;
+            }
+            if (typeof threeDSResponse.threeDsVersion === 'string' && threeDSResponse.threeDsVersion) {
+                data.three_ds_version = threeDSResponse.threeDsVersion;
+            }
+            if (typeof threeDSResponse.directoryServerId === 'string' && threeDSResponse.directoryServerId) {
+                data.directory_server_id = threeDSResponse.directoryServerId;
+            }
+            if (typeof threeDSResponse.cardHolderInfo === 'string' && threeDSResponse.cardHolderInfo) {
+                data.cardholder_info = threeDSResponse.cardHolderInfo;
+            }
+            
+            console.log('AP NMI Blocks: Safe 3DS data prepared', {
+                has_cavv: !!data.cavv,
+                has_xid: !!data.xid,
+                three_ds_version: data.three_ds_version || 'none'
+            });
+            
+            return data;
+        };
+        
         // 3DS handler for saved vault cards
         window.nmiBlocksHandle3DSForVault = function(customerVaultId, resolve, reject, setError) {
             try {
@@ -248,6 +288,13 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                     }
                     window.currentNmi3DSInstance = null;
                 }
+                
+                // Debug: Log Gateway.js key for saved card 3DS
+                const gatewayJsKey = ap_nmi_threeds_config.public_key;
+                console.log('AP NMI Blocks: 3DS Key for Saved Card', {
+                    gatewayjs_key: gatewayJsKey ? gatewayJsKey.substring(0, 20) + '...' : 'EMPTY',
+                    vault_id: customerVaultId
+                });
                 
                 const gateway = Gateway.create(ap_nmi_threeds_config.public_key);
                 const threeDS = gateway.get3DSecure();
@@ -274,19 +321,16 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                 threeDSecureInterface.on('complete', function(e) {
                     console.log('AP NMI Blocks: 3DS complete for saved card:', e);
                     
+                    // Use helper to safely extract only valid 3DS fields
+                    const safe3DSData = window.nmiBlocksSafe3DSData(e);
+                    
                     resolve({
                         type: emitResponse.responseTypes.SUCCESS,
                         meta: {
                             paymentMethodData: {
                                 use_save_payment_method: '1',
                                 save_payment_method: '0',
-                                cavv: e.cavv,
-                                xid: e.xid,
-                                eci: e.eci,
-                                cardholder_auth: e.cardHolderAuth,
-                                three_ds_version: e.threeDsVersion,
-                                directory_server_id: e.directoryServerId,
-                                cardholder_info: e.cardHolderInfo,
+                                ...safe3DSData,
                             },
                         },
                     });
@@ -357,9 +401,11 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                 
             } catch (error) {
                 console.error('AP NMI Blocks: 3DS initialization error for saved card:', error);
+                const errorMessage = __('Unable to initialize card verification. Please try again.', 'gaincommerce-nmi-payment-gateway-for-woocommerce');
+                alert(errorMessage); // Fallback alert
                 reject({
                     type: emitResponse.responseTypes.ERROR,
-                    message: __('Unable to initialize card verification. Please try again.', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                    message: errorMessage,
                 });
             }
         };
@@ -376,6 +422,22 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                         console.warn('AP NMI Blocks: Error unmounting 3DS instance:', e);
                     }
                     window.currentNmi3DSInstance = null;
+                }
+                
+                // Debug: Verify key consistency between CollectJS and Gateway.js
+                const collectJsKey = typeof ap_nmi_params !== 'undefined' ? ap_nmi_params.public_key : 'NOT FOUND';
+                const gatewayJsKey = ap_nmi_threeds_config.public_key;
+                const keysMatch = collectJsKey === gatewayJsKey;
+                
+                console.log('AP NMI Blocks: 3DS Key Verification for New Card', {
+                    collectjs_key: collectJsKey ? collectJsKey.substring(0, 20) + '...' : 'EMPTY',
+                    gatewayjs_key: gatewayJsKey ? gatewayJsKey.substring(0, 20) + '...' : 'EMPTY',
+                    keys_match: keysMatch ? 'YES' : 'NO - MISMATCH DETECTED!',
+                    token: paymentToken.substring(0, 20) + '...'
+                });
+                
+                if (!keysMatch) {
+                    console.error('AP NMI Blocks: KEY MISMATCH! CollectJS token generated with one key, but Gateway.js using different key. This causes "Payment Token does not exist" errors.');
                 }
                 
                 const gateway = Gateway.create(ap_nmi_threeds_config.public_key);
@@ -408,6 +470,9 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                 threeDSecureInterface.on('complete', function(e) {
                     console.log('AP NMI Blocks: 3DS complete for new card:', e);
                     
+                    // Use helper to safely extract only valid 3DS fields
+                    const safe3DSData = window.nmiBlocksSafe3DSData(e);
+                    
                     resolve({
                         type: emitResponse.responseTypes.SUCCESS,
                         meta: {
@@ -415,13 +480,7 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                                 payment_token: paymentToken,
                                 save_payment_method: savePaymentMethodRef.current ? '1' : '0',
                                 use_save_payment_method: '0',
-                                cavv: e.cavv,
-                                xid: e.xid,
-                                eci: e.eci,
-                                cardholder_auth: e.cardHolderAuth,
-                                three_ds_version: e.threeDsVersion,
-                                directory_server_id: e.directoryServerId,
-                                cardholder_info: e.cardHolderInfo,
+                                ...safe3DSData,
                             },
                         },
                     });
@@ -494,9 +553,11 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                 
             } catch (error) {
                 console.error('AP NMI Blocks: 3DS initialization error for new card:', error);
+                const errorMessage = __('Unable to initialize card verification. Please try again.', 'gaincommerce-nmi-payment-gateway-for-woocommerce');
+                alert(errorMessage); // Fallback alert
                 reject({
                     type: emitResponse.responseTypes.ERROR,
-                    message: __('Unable to initialize card verification. Please try again.', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                    message: errorMessage,
                 });
             }
         };

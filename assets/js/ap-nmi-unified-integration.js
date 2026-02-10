@@ -22,6 +22,46 @@ jQuery(document).ready(function($) {
         cvv: false
     };
 
+    /**
+     * Helper function to safely build 3DS data object
+     * Only includes fields that are strings and not empty/null
+     * Prevents REST API type validation errors
+     */
+    window.nmiSafe3DSData = function(threeDSResponse) {
+        const data = {};
+        
+        // Only add fields if they are strings and not empty
+        if (typeof threeDSResponse.cavv === 'string' && threeDSResponse.cavv) {
+            data.cavv = threeDSResponse.cavv;
+        }
+        if (typeof threeDSResponse.xid === 'string' && threeDSResponse.xid) {
+            data.xid = threeDSResponse.xid;
+        }
+        if (typeof threeDSResponse.eci === 'string' && threeDSResponse.eci) {
+            data.eci = threeDSResponse.eci;
+        }
+        if (typeof threeDSResponse.cardHolderAuth === 'string' && threeDSResponse.cardHolderAuth) {
+            data.cardholder_auth = threeDSResponse.cardHolderAuth;
+        }
+        if (typeof threeDSResponse.threeDsVersion === 'string' && threeDSResponse.threeDsVersion) {
+            data.three_ds_version = threeDSResponse.threeDsVersion;
+        }
+        if (typeof threeDSResponse.directoryServerId === 'string' && threeDSResponse.directoryServerId) {
+            data.directory_server_id = threeDSResponse.directoryServerId;
+        }
+        if (typeof threeDSResponse.cardHolderInfo === 'string' && threeDSResponse.cardHolderInfo) {
+            data.cardholder_info = threeDSResponse.cardHolderInfo;
+        }
+        
+        console.log('NMI Safe 3DS data prepared', {
+            has_cavv: !!data.cavv,
+            has_xid: !!data.xid,
+            three_ds_version: data.three_ds_version || 'none'
+        });
+        
+        return data;
+    };
+
     // Function to query CollectJS iframes after they're created
     window.queryCollectJSIframes = function() {
         console.log('Querying CollectJS iframes...');
@@ -252,16 +292,8 @@ jQuery(document).ready(function($) {
                 console.log('3DS Authentication complete:', e);
                 nmiHide3DSMessage();
                 
-                // Prepare 3DS data
-                const threeDSData = {
-                    cavv: e.cavv,
-                    xid: e.xid,
-                    eci: e.eci,
-                    cardholder_auth: e.cardHolderAuth,
-                    three_ds_version: e.threeDsVersion,
-                    directory_server_id: e.directoryServerId,
-                    cardholder_info: e.cardHolderInfo
-                };
+                // Use helper to safely extract only valid 3DS fields
+                const threeDSData = window.nmiSafe3DSData(e);
                 
                 // Submit form with token and 3DS data
                 nmiSubmitFormWithToken(paymentToken, threeDSData);
@@ -407,15 +439,24 @@ jQuery(document).ready(function($) {
         $('.woocommerce-error, .nmi-error-message').remove();
         
         var errorHtml = '<div class="woocommerce-error" role="alert">' + message + '</div>';
+        var errorDisplayed = false;
         
         // For legacy checkout
         if ($('form.woocommerce-checkout').length) {
             $('form.woocommerce-checkout').prepend(errorHtml);
+            errorDisplayed = true;
         }
         
         // For blocks checkout
         if ($('div.wc-block-checkout').length) {
             $('.wc-block-components-checkout-form').prepend(errorHtml);
+            errorDisplayed = true;
+        }
+        
+        // Fallback: if error wasn't displayed via DOM, show alert
+        if (!errorDisplayed) {
+            console.error('NMI: Unable to display error in checkout form, using alert');
+            alert('Payment Error: ' + message);
         }
         
         // Scroll to error with safety checks
@@ -572,16 +613,8 @@ jQuery(document).ready(function($) {
                     console.log('3DS Authentication complete for saved card:', e);
                     nmiHide3DSMessage();
                     
-                    // Prepare 3DS data
-                    const threeDSData = {
-                        cavv: e.cavv,
-                        xid: e.xid,
-                        eci: e.eci,
-                        cardholder_auth: e.cardHolderAuth,
-                        three_ds_version: e.threeDsVersion,
-                        directory_server_id: e.directoryServerId,
-                        cardholder_info: e.cardHolderInfo
-                    };
+                    // Use helper to safely extract only valid 3DS fields
+                    const threeDSData = window.nmiSafe3DSData(e);
                     
                     // Submit form with 3DS data (no token needed for vault)
                     nmiSubmitFormWithVaultAndThreeDS(threeDSData);

@@ -108,7 +108,7 @@ class Gateway extends WC_Payment_Gateway
         $this->private_key = $this->get_option('private_key');
             
         // Set public key (secondary authentication)
-        $this->public_key =  $this->get_option('public_key');
+        $this->public_key = $this->get_option('public_key');
 
         $this->use_collect_js = self::USE_COLLECT_JS ? 1:0;
 
@@ -531,63 +531,96 @@ class Gateway extends WC_Payment_Gateway
         // Extract 3DS data if premium plugin is active and 3DS is enabled
         $threeds_data = [];
         
-        // Check for 3DS data from blocks checkout
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification handled earlier in the method
-        if (isset($_POST['payment_method_data'])) {
-            // phpcs:ignore WordPress.Security.NonceVerification.Missing
-            $payment_data = $_POST['payment_method_data'];
-            
-            if (isset($payment_data['cavv'])) {
-                $threeds_data['cavv'] = sanitize_text_field(wp_unslash($payment_data['cavv']));
-            }
-            if (isset($payment_data['xid'])) {
-                $threeds_data['xid'] = sanitize_text_field(wp_unslash($payment_data['xid']));
-            }
-            if (isset($payment_data['eci'])) {
-                $threeds_data['eci'] = sanitize_text_field(wp_unslash($payment_data['eci']));
-            }
-            if (isset($payment_data['cardholder_auth'])) {
-                $threeds_data['cardholder_auth'] = sanitize_text_field(wp_unslash($payment_data['cardholder_auth']));
-            }
-            if (isset($payment_data['three_ds_version'])) {
-                $threeds_data['three_ds_version'] = sanitize_text_field(wp_unslash($payment_data['three_ds_version']));
-            }
-            if (isset($payment_data['directory_server_id'])) {
-                $threeds_data['directory_server_id'] = sanitize_text_field(wp_unslash($payment_data['directory_server_id']));
-            }
-            if (isset($payment_data['cardholder_info'])) {
-                $threeds_data['cardholder_info'] = sanitize_text_field(wp_unslash($payment_data['cardholder_info']));
-            }
-        }
+        // Check if 3DS is enabled (requires premium plugin)
+        $is_3ds_enabled = class_exists('GainCommerceNmiEnterprise\Settings\ThreeDS_Settings') 
+            && \GainCommerceNmiEnterprise\Settings\ThreeDS_Settings::is_3ds_enabled();
         
-        // Check for 3DS data from legacy checkout
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification handled earlier in the method
-        if (empty($threeds_data) && isset($_POST['threeds_cavv'])) {
-            // phpcs:ignore WordPress.Security.NonceVerification.Missing
-            $threeds_data['cavv'] = sanitize_text_field(wp_unslash($_POST['threeds_cavv']));
-            // phpcs:ignore WordPress.Security.NonceVerification.Missing
-            if (isset($_POST['threeds_xid'])) {
-                $threeds_data['xid'] = sanitize_text_field(wp_unslash($_POST['threeds_xid']));
+        if (!$is_3ds_enabled) {
+            // 3DS disabled - proceed with CollectJS token only
+            Logger::get_instance()->debug('3DS disabled or premium plugin not active', [
+                'order_id' => $order->get_id()
+            ]);
+        } else {
+            // 3DS enabled - extract and validate 3DS data
+            Logger::get_instance()->debug('3DS enabled - checking for authentication data', [
+                'order_id' => $order->get_id()
+            ]);
+            
+            // Check for 3DS data from blocks checkout
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification handled earlier in the method
+            if (isset($_POST['payment_method_data'])) {
+                // phpcs:ignore WordPress.Security.NonceVerification.Missing
+                $payment_data = $_POST['payment_method_data'];
+                
+                // Extract and validate each 3DS field with type checking
+                if (isset($payment_data['cavv']) && is_string($payment_data['cavv']) && !empty($payment_data['cavv'])) {
+                    $threeds_data['cavv'] = sanitize_text_field(wp_unslash($payment_data['cavv']));
+                }
+                if (isset($payment_data['xid']) && is_string($payment_data['xid']) && !empty($payment_data['xid'])) {
+                    $threeds_data['xid'] = sanitize_text_field(wp_unslash($payment_data['xid']));
+                }
+                if (isset($payment_data['eci']) && is_string($payment_data['eci']) && !empty($payment_data['eci'])) {
+                    $threeds_data['eci'] = sanitize_text_field(wp_unslash($payment_data['eci']));
+                }
+                if (isset($payment_data['cardholder_auth']) && is_string($payment_data['cardholder_auth']) && !empty($payment_data['cardholder_auth'])) {
+                    $threeds_data['cardholder_auth'] = sanitize_text_field(wp_unslash($payment_data['cardholder_auth']));
+                }
+                if (isset($payment_data['three_ds_version']) && is_string($payment_data['three_ds_version']) && !empty($payment_data['three_ds_version'])) {
+                    $threeds_data['three_ds_version'] = sanitize_text_field(wp_unslash($payment_data['three_ds_version']));
+                }
+                if (isset($payment_data['directory_server_id']) && is_string($payment_data['directory_server_id']) && !empty($payment_data['directory_server_id'])) {
+                    $threeds_data['directory_server_id'] = sanitize_text_field(wp_unslash($payment_data['directory_server_id']));
+                }
+                if (isset($payment_data['cardholder_info']) && is_string($payment_data['cardholder_info']) && !empty($payment_data['cardholder_info'])) {
+                    $threeds_data['cardholder_info'] = sanitize_text_field(wp_unslash($payment_data['cardholder_info']));
+                }
             }
-            // phpcs:ignore WordPress.Security.NonceVerification.Missing
-            if (isset($_POST['threeds_eci'])) {
-                $threeds_data['eci'] = sanitize_text_field(wp_unslash($_POST['threeds_eci']));
+            
+            // Check for 3DS data from legacy checkout
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification handled earlier in the method
+            if (empty($threeds_data) && isset($_POST['threeds_cavv'])) {
+                // phpcs:ignore WordPress.Security.NonceVerification.Missing
+                if (is_string($_POST['threeds_cavv']) && !empty($_POST['threeds_cavv'])) {
+                    $threeds_data['cavv'] = sanitize_text_field(wp_unslash($_POST['threeds_cavv']));
+                }
+                // phpcs:ignore WordPress.Security.NonceVerification.Missing
+                if (isset($_POST['threeds_xid']) && is_string($_POST['threeds_xid']) && !empty($_POST['threeds_xid'])) {
+                    $threeds_data['xid'] = sanitize_text_field(wp_unslash($_POST['threeds_xid']));
+                }
+                // phpcs:ignore WordPress.Security.NonceVerification.Missing
+                if (isset($_POST['threeds_eci']) && is_string($_POST['threeds_eci']) && !empty($_POST['threeds_eci'])) {
+                    $threeds_data['eci'] = sanitize_text_field(wp_unslash($_POST['threeds_eci']));
+                }
+                // phpcs:ignore WordPress.Security.NonceVerification.Missing
+                if (isset($_POST['threeds_cardholder_auth']) && is_string($_POST['threeds_cardholder_auth']) && !empty($_POST['threeds_cardholder_auth'])) {
+                    $threeds_data['cardholder_auth'] = sanitize_text_field(wp_unslash($_POST['threeds_cardholder_auth']));
+                }
+                // phpcs:ignore WordPress.Security.NonceVerification.Missing
+                if (isset($_POST['threeds_version']) && is_string($_POST['threeds_version']) && !empty($_POST['threeds_version'])) {
+                    $threeds_data['three_ds_version'] = sanitize_text_field(wp_unslash($_POST['threeds_version']));
+                }
+                // phpcs:ignore WordPress.Security.NonceVerification.Missing
+                if (isset($_POST['threeds_directory_server_id']) && is_string($_POST['threeds_directory_server_id']) && !empty($_POST['threeds_directory_server_id'])) {
+                    $threeds_data['directory_server_id'] = sanitize_text_field(wp_unslash($_POST['threeds_directory_server_id']));
+                }
+                // phpcs:ignore WordPress.Security.NonceVerification.Missing
+                if (isset($_POST['threeds_cardholder_info']) && is_string($_POST['threeds_cardholder_info']) && !empty($_POST['threeds_cardholder_info'])) {
+                    $threeds_data['cardholder_info'] = sanitize_text_field(wp_unslash($_POST['threeds_cardholder_info']));
+                }
             }
-            // phpcs:ignore WordPress.Security.NonceVerification.Missing
-            if (isset($_POST['threeds_cardholder_auth'])) {
-                $threeds_data['cardholder_auth'] = sanitize_text_field(wp_unslash($_POST['threeds_cardholder_auth']));
-            }
-            // phpcs:ignore WordPress.Security.NonceVerification.Missing
-            if (isset($_POST['threeds_version'])) {
-                $threeds_data['three_ds_version'] = sanitize_text_field(wp_unslash($_POST['threeds_version']));
-            }
-            // phpcs:ignore WordPress.Security.NonceVerification.Missing
-            if (isset($_POST['threeds_directory_server_id'])) {
-                $threeds_data['directory_server_id'] = sanitize_text_field(wp_unslash($_POST['threeds_directory_server_id']));
-            }
-            // phpcs:ignore WordPress.Security.NonceVerification.Missing
-            if (isset($_POST['threeds_cardholder_info'])) {
-                $threeds_data['cardholder_info'] = sanitize_text_field(wp_unslash($_POST['threeds_cardholder_info']));
+            
+            // Log 3DS data extraction result
+            if (!empty($threeds_data)) {
+                Logger::get_instance()->debug('3DS data extracted from request', [
+                    'order_id' => $order->get_id(),
+                    'has_cavv' => !empty($threeds_data['cavv']),
+                    'has_xid' => !empty($threeds_data['xid']),
+                    'three_ds_version' => $threeds_data['three_ds_version'] ?? 'unknown'
+                ]);
+            } else {
+                Logger::get_instance()->debug('No 3DS data found in request', [
+                    'order_id' => $order->get_id()
+                ]);
             }
         }
         
@@ -600,13 +633,43 @@ class Gateway extends WC_Payment_Gateway
             $gateway_config['customer_receipt'] = true;
         }
 
-        $process_payment = new NMI_Process_Payment($order, $gateway_config);
-        $response = $process_payment->process_sale();
+        try {
+            $process_payment = new NMI_Process_Payment($order, $gateway_config);
+            $response = $process_payment->process_sale();
 
-        Logger::get_instance()->debug(
-            'WC Gateway process_sale return API', 
-            $response
-        );
+            Logger::get_instance()->debug(
+                'WC Gateway process_sale return API', 
+                $response
+            );
+        } catch (\Exception $e) {
+            // Catch any exceptions during payment processing
+            Logger::get_instance()->error('Payment processing exception', [
+                'order_id' => $order->get_id(),
+                'exception' => $e->getMessage(),
+            ]);
+            
+            $error_message = $e->getMessage();
+            wc_add_notice($error_message, 'error');
+            
+            $order->add_order_note(
+                sprintf(
+                    __('NMI payment exception: %1$s', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                    $error_message
+                )
+            );
+            
+            $order->update_status('failed', $error_message);
+            
+            // For Blocks checkout, re-throw to ensure error displays
+            if (defined('REST_REQUEST') && REST_REQUEST) {
+                throw $e;
+            }
+            
+            return [
+                'result' => 'fail',
+                'messages' => '<div class="woocommerce-error">' . esc_html($error_message) . '</div>',
+            ];
+        }
 
         if ($response['success']) {
 
@@ -727,7 +790,20 @@ class Gateway extends WC_Payment_Gateway
             ];
         } else {
             
-            wc_add_notice($response['message'], 'error');
+            // Get error message
+            $error_message = !empty($response['message']) 
+                ? $response['message'] 
+                : __('Payment processing failed. Please try again.', 'gaincommerce-nmi-payment-gateway-for-woocommerce');
+            
+            // Log the error
+            Logger::get_instance()->error('Payment failed', [
+                'order_id' => $order->get_id(),
+                'error_message' => $error_message,
+                'response' => $response,
+            ]);
+            
+            // Add error notice for legacy checkout
+            wc_add_notice($error_message, 'error');
            
             $order->add_order_note(
                 sprintf(
@@ -736,10 +812,22 @@ class Gateway extends WC_Payment_Gateway
                         'NMI payment failed: %1$s',
                         'gaincommerce-nmi-payment-gateway-for-woocommerce'
                     ),
-                    $response['message']
+                    $error_message
                 )
             );
-            return ['result' => 'fail'];
+            
+            // Update order status to failed
+            $order->update_status('failed', $error_message);
+            
+            // For WooCommerce Blocks, throw exception to properly display error
+            if (defined('REST_REQUEST') && REST_REQUEST) {
+                throw new \Exception($error_message);
+            }
+            
+            return [
+                'result' => 'fail',
+                'messages' => '<div class="woocommerce-error">' . esc_html($error_message) . '</div>',
+            ];
         }
     }
 
