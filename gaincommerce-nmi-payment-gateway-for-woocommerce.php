@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gain Commerce NMI Payment Gateway for WooCommerce
  * Description: WooCommerce payment gateway using NMI. Compatible with WooCommerce 8+ (HPOS only) and WordPress 6.8.*
- * Version: 1.10.0
+ * Version: 1.11.0
  * Requires at least: 6.8
  * Tested up to: 6.9
  * Requires PHP: 7.4
@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('AP_NMI_PAYMENT_GATEWAY_VERSION', '1.10.0');
+define('AP_NMI_PAYMENT_GATEWAY_VERSION', '1.11.0');
 define('AP_NMI_PAYMENT_GATEWAY_PLUGIN_FILE', __FILE__);
 define('AP_NMI_PAYMENT_GATEWAY_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('AP_NMI_PAYMENT_GATEWAY_PLUGIN_URL', plugin_dir_url(__FILE__));

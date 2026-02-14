@@ -3,7 +3,7 @@ Contributors: allan.casilum, gaincommerce
 Tags: nmi, woocommerce, payment gateway, credit card, pci
 Requires at least: 6.8
 Tested up to: 6.9
-Stable tag: 1.10.0
+Stable tag: 1.11.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Requires Plugins: woocommerce
@@ -37,7 +37,7 @@ Merchants gain essential features like the Authorize Now and Capture Later flexi
 =
 * <strong>ACH Payments</strong> integrated electronic transfers through the ACH network.
 * <strong>Stored Payments</strong> for card or ACH payments in the PCI-compliant Customer Vault.
-
+* <strong>3D Secure 2 (3DS2)</strong> authentication to reduce fraud. PSD2/SCA Compliant.
 
 <strong>Important Requirements:</strong>
 =
@@ -119,6 +119,9 @@ Visit <a href="https://www.gaincommerce.com/support" target="_blank">gaincommerc
 
 
 == Changelog ==
+= 1.11.0 =
+* Added support for 3D Secure (3DS) authentication when the Premium Add-on plugin is installed. The free plugin now enables 3DS for enhanced security, but requires the Premium plugin to activate this feature.
+
 = 1.10.0 =
 * Fix and replace deprecated reduced_stock_qty to wc_reduce_stock_levels
 * Add ability for customers to store payment method for future transactions in card vault by choosing “Save Payment Method” during checkout. Available only in Premium Plugin
