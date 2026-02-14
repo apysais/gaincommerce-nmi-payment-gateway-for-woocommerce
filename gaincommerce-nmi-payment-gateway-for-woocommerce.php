@@ -12,7 +12,7 @@
  * Text Domain: gaincommerce-nmi-payment-gateway-for-woocommerce
  * Domain Path: /languages
  * WC requires at least: 8.0
- * WC tested up to: 10.4.2
+ * WC tested up to: 10.5.1
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  */
