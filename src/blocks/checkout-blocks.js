@@ -690,7 +690,7 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                     id="threeDSMountPoint" 
                     style={{ 
                         marginTop: '15px',
-                        minHeight: '400px',
+                        minHeight: '100px',
                         maxWidth: '100%',
                         position: 'relative'
                     }}
