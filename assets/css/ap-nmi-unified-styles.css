@@ -2,6 +2,31 @@
     margin-bottom: 15px;
 }
 
+/* Fields loading indicator */
+.ap-nmi-fields-loader {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0 14px;
+    color: #767676;
+    font-size: 13px;
+}
+
+.ap-nmi-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #ccc;
+    border-top-color: #555;
+    border-radius: 50%;
+    animation: ap-nmi-spin 0.7s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes ap-nmi-spin {
+    to { transform: rotate(360deg); }
+}
+
 .ap-nmi-collectjs-container input {
     width: 100%;
     padding: 8px;

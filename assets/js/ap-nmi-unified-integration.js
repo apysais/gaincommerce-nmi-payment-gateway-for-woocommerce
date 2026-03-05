@@ -149,6 +149,9 @@ jQuery(document).ready(function($) {
 
         console.log('Initializing CollectJS for NMI credit card payment...');
 
+        // Show loading indicator while CollectJS populates fields
+        $('#ap-nmi-wc-fields-container .ap-nmi-fields-loader').show();
+
         // Configure CollectJS with shared settings
         CollectJS.configure({
             paymentSelector: '#place_order, .wc-block-components-checkout-place-order-button',
@@ -195,6 +198,8 @@ jQuery(document).ready(function($) {
             },
             fieldsAvailableCallback: function () {
                 console.log("Collect.js loaded the fields onto the form");
+                // Hide loading indicator
+                $('#ap-nmi-wc-fields-container .ap-nmi-fields-loader').hide();
                 // Reset validation when fields are available
                 window.nmiFieldValidation = {
                     ccnumber: false,
