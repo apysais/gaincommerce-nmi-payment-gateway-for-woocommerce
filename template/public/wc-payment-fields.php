@@ -102,7 +102,7 @@ if (class_exists('GainCommerceNmiEnterprise\\User\\Meta_Save_Payment_Method_CC')
     ?>
 
     <!-- 3D Secure Mount Point -->
-    <div id="threeDSMountPoint" style="margin-top: 15px; min-height: 400px; max-width: 100%;"></div>
+    <div id="threeDSMountPoint" style=""></div>
     
     <!-- 3D Secure Message -->
     <div id="threeDSMessage" style="display: none; padding: 10px; background: #f0f0f0; margin-top: 10px; border-radius: 4px; text-align: center;"></div>
@@ -110,7 +110,8 @@ if (class_exists('GainCommerceNmiEnterprise\\User\\Meta_Save_Payment_Method_CC')
     <?php if ($has_saved_card): ?>
     <script type="text/javascript">
     jQuery(function($) {
-        $('input[name="use_save_payment_method"]').on('change', function() {
+        // Scoped to CC selection div to avoid conflict with ACH saved payment radios
+        $('.ap-nmi-saved-card-selection input[name="use_save_payment_method"]').on('change', function() {
             var useSavedCard = $(this).val() === '1';
             if (useSavedCard) {
                 $('#ap-nmi-wc-fields-container').hide();

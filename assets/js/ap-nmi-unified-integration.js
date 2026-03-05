@@ -15,6 +15,9 @@ jQuery(document).ready(function($) {
 
     console.log('Legacy checkout detected - initializing CollectJS integration');
 
+    // Track if CollectJS has been configured to prevent duplicate initialization
+    window.nmiCollectJSConfigured = false;
+
     // Initialize validation tracking
     window.nmiFieldValidation = {
         ccnumber: false,
@@ -127,77 +130,242 @@ jQuery(document).ready(function($) {
         return loadedIframes >= expectedIframes;
     };
 
-    // Configure CollectJS with shared settings
-    CollectJS.configure({
-        paymentSelector: '#place_order, .wc-block-components-checkout-place-order-button',
-        variant: "inline",
-        invalidCss: {
-            color: "#e74c3c",
-            "border-color": "#e74c3c",
-        },
-        validCss: {
-            color: "black",
-            "border-color": "#2ecc71",
-        },
-        placeholderCss: {
-            color: "darkgray",
-            "background-color": "#ffffff",
-        },
-        focusCss: {
-            color: "black",
-            "border-color": "#4681f4",
-        },
-        fields: {
-            ccnumber: {
-                selector: "#ap-nmi-card-number",
-                title: "Card Number",
-                placeholder: "0000 0000 0000 0000",
-            },
-            ccexp: {
-                selector: "#ap-nmi-expiry-date",
-                title: "Card Expiration",
-                placeholder: "MM/YY",
-            },
-            cvv: {
-                display: "show",
-                selector: "#ap-nmi-card-cvv",
-                title: "CVV Code",
-                placeholder: "123",
-            }
-        },
-        timeoutDuration: 10000,
-        timeoutCallback: function () {
-            console.log("The tokenization didn't respond in the expected timeframe.");
-            nmiShowError('Payment processing timeout. Please try again.');
-            nmiEnableSubmitButton();
-        },
-        fieldsAvailableCallback: function () {
-            console.log("Collect.js loaded the fields onto the form");
-            // Reset validation when fields are available
-            window.nmiFieldValidation = {
-                ccnumber: false,
-                ccexp: false,
-                cvv: false
-            };
-            
-            // Query and log iframe information after fields are ready
-            /*setTimeout(function() {
-                queryCollectJSIframes();
-            }, 500);*/
-        },
-        callback: function(response) {
-            let restricted_card = ap_nmi_params.gateway_config.restricted_card_types;
-            
-            if (restricted_card.includes(response.card.type)) {
-                nmiShowError('This card type is not accepted.');
-                nmiEnableSubmitButton();
-                return;
-            }
+    /**
+     * Initialize CollectJS - should only be called once
+     * Called when NMI payment method is selected
+     */
+    function initializeCollectJS() {
+        // Prevent duplicate initialization
+        if (window.nmiCollectJSConfigured) {
+            console.log('CollectJS already configured for credit card');
+            return;
+        }
 
-            nmiHandleTokenResponse(response);
-        },
-        validationCallback: function(field, status, message) {
-            nmiHandleValidation(field, status, message);
+        // Check if field containers exist
+        if ($('#ap-nmi-card-number').length === 0) {
+            console.log('NMI credit card field containers not found, skipping initialization');
+            return;
+        }
+
+        console.log('Initializing CollectJS for NMI credit card payment...');
+
+        // Configure CollectJS with shared settings
+        CollectJS.configure({
+            paymentSelector: '#place_order, .wc-block-components-checkout-place-order-button',
+            variant: "inline",
+            invalidCss: {
+                color: "#e74c3c",
+                "border-color": "#e74c3c",
+            },
+            validCss: {
+                color: "black",
+                "border-color": "#2ecc71",
+            },
+            placeholderCss: {
+                color: "darkgray",
+                "background-color": "#ffffff",
+            },
+            focusCss: {
+                color: "black",
+                "border-color": "#4681f4",
+            },
+            fields: {
+                ccnumber: {
+                    selector: "#ap-nmi-card-number",
+                    title: "Card Number",
+                    placeholder: "0000 0000 0000 0000",
+                },
+                ccexp: {
+                    selector: "#ap-nmi-expiry-date",
+                    title: "Card Expiration",
+                    placeholder: "MM/YY",
+                },
+                cvv: {
+                    display: "show",
+                    selector: "#ap-nmi-card-cvv",
+                    title: "CVV Code",
+                    placeholder: "123",
+                }
+            },
+            timeoutDuration: 10000,
+            timeoutCallback: function () {
+                console.log("The tokenization didn't respond in the expected timeframe.");
+                nmiShowError('Payment processing timeout. Please try again.');
+                nmiEnableSubmitButton();
+            },
+            fieldsAvailableCallback: function () {
+                console.log("Collect.js loaded the fields onto the form");
+                // Reset validation when fields are available
+                window.nmiFieldValidation = {
+                    ccnumber: false,
+                    ccexp: false,
+                    cvv: false
+                };
+                
+                // Query and log iframe information after fields are ready
+                /*setTimeout(function() {
+                    queryCollectJSIframes();
+                }, 500);*/
+            },
+            callback: function(response) {
+                let restricted_card = ap_nmi_params.gateway_config.restricted_card_types;
+                
+                if (restricted_card.includes(response.card.type)) {
+                    nmiShowError('This card type is not accepted.');
+                    nmiEnableSubmitButton();
+                    return;
+                }
+
+                nmiHandleTokenResponse(response);
+            },
+            validationCallback: function(field, status, message) {
+                nmiHandleValidation(field, status, message);
+            }
+        });
+
+        // Mark as configured
+        window.nmiCollectJSConfigured = true;
+        console.log('CollectJS configuration complete for credit card');
+    }
+
+    /**
+     * Check if NMI credit card payment method is currently selected
+     */
+    function isNMIPaymentMethodSelected() {
+        var selectedMethod = $('input[name="payment_method"]:checked').val();
+        return selectedMethod === ap_nmi_params.ap_nmi_gateway_id;
+    }
+
+    /**
+     * Get the CC payment box jQuery element
+     */
+    function getCCPaymentBox() {
+        return $('div.payment_box.payment_method_' + ap_nmi_params.ap_nmi_gateway_id);
+    }
+
+    /**
+     * Handle payment method selection - initialize CollectJS when NMI is selected
+     */
+    $(document.body).on('payment_method_selected', function() {
+        if (isNMIPaymentMethodSelected()) {
+            console.log('NMI credit card payment method selected, initializing CollectJS...');
+            
+            // Scope radio queries to CC payment box only
+            var $ccBox = getCCPaymentBox();
+            var $savedCardRadio = $ccBox.find('.ap-nmi-saved-card-selection input[name="use_save_payment_method"][value="1"]');
+            var hasSavedCard = $savedCardRadio.length > 0;
+            
+            if (hasSavedCard) {
+                console.log('Found saved card, defaulting to saved payment method...');
+                
+                // Remove loading class if present
+                $ccBox.find('.ap-nmi-payment-form').removeClass('loading');
+                
+                // Set saved card as checked if not already
+                if (!$savedCardRadio.is(':checked')) {
+                    $savedCardRadio.prop('checked', true);
+                    $('#ap-nmi-wc-fields-container').hide();
+                    $('.ap-nmi-save-payment-row').hide();
+                }
+                return; // Don't initialize CollectJS, fields are hidden
+            }
+            
+            // No saved method - show fields and initialize
+            console.log('No saved card, showing new card fields...');
+            $('#ap-nmi-wc-fields-container').show();
+            initializeCollectJS();
+        }
+    });
+
+    /**
+     * Handle checkout updates - reset and reinitialize if needed
+     */
+    $(document.body).on('updated_checkout', function() {
+        console.log('Checkout updated, checking if CollectJS needs reinitialization...');
+        
+        // Reset the configuration flag to allow reinitialization
+        window.nmiCollectJSConfigured = false;
+        
+        // If NMI is selected, reinitialize if needed
+        if (isNMIPaymentMethodSelected()) {
+            var $ccBox = getCCPaymentBox();
+            var $ccSavedRadio = $ccBox.find('.ap-nmi-saved-card-selection input[name="use_save_payment_method"]:checked');
+            var useNewCard = $ccSavedRadio.length > 0 ? $ccSavedRadio.val() !== '1' : true;
+            var noSavedMethod = $('.ap-nmi-saved-card-selection').length === 0;
+            
+            if (useNewCard || noSavedMethod) {
+                console.log('NMI still selected after checkout update, reinitializing...');
+                $('#ap-nmi-wc-fields-container').show();
+                initializeCollectJS();
+            } else {
+                // Using saved card - remove loading class if present
+                $ccBox.find('.ap-nmi-payment-form').removeClass('loading');
+            }
+        }
+    });
+
+    /**
+     * Handle saved payment method radio button toggle (scoped to CC payment box)
+     * Show/hide new card fields based on selection
+     */
+    $(document).on('change', '.ap-nmi-saved-card-selection input[name="use_save_payment_method"]', function() {
+        var useNew = $(this).val() === '0';
+        var $fieldsContainer = $('#ap-nmi-wc-fields-container');
+        var $saveRow = $('.ap-nmi-save-payment-row');
+        
+        if (useNew) {
+            console.log('User selected "Use a new card", showing fields...');
+            $fieldsContainer.slideDown(200);
+            $saveRow.slideDown(200);
+            
+            // Initialize CollectJS if not already done
+            initializeCollectJS();
+        } else {
+            console.log('User selected "Use saved card", hiding fields...');
+            $fieldsContainer.slideUp(200);
+            $saveRow.slideUp(200);
+        }
+    });
+
+    /**
+     * On page load, check if NMI is the only payment method or is already selected
+     * Auto-initialize for better UX in single payment method scenarios
+     */
+    $(function() {
+        var paymentMethods = $('input[name="payment_method"]');
+        var nmiIsOnlyMethod = paymentMethods.length === 1 && isNMIPaymentMethodSelected();
+        var nmiIsSelected = paymentMethods.length > 1 && isNMIPaymentMethodSelected();
+        
+        // If NMI payment method is currently visible/selected
+        if (nmiIsOnlyMethod || nmiIsSelected) {
+            // Scope radio queries to CC payment box only
+            var $ccBox = getCCPaymentBox();
+            var $savedCardRadio = $ccBox.find('.ap-nmi-saved-card-selection input[name="use_save_payment_method"][value="1"]');
+            var hasSavedCard = $savedCardRadio.length > 0;
+            
+            if (hasSavedCard) {
+                // Remove loading class - saved payment doesn't need CollectJS fields
+                $ccBox.find('.ap-nmi-payment-form').removeClass('loading');
+                
+                if (!$savedCardRadio.is(':checked')) {
+                    console.log('Setting saved card as default selection...');
+                    $savedCardRadio.prop('checked', true);
+                    $('#ap-nmi-wc-fields-container').hide();
+                    $('.ap-nmi-save-payment-row').hide();
+                }
+            }
+            
+            // Check if "use new card" is selected (or no saved method exists)
+            var useNewCard = hasSavedCard ? !$savedCardRadio.is(':checked') : true;
+            var noSavedMethod = !hasSavedCard;
+            
+            if (nmiIsOnlyMethod && (useNewCard || noSavedMethod)) {
+                console.log('NMI is the only payment method, auto-initializing CollectJS...');
+                initializeCollectJS();
+            } else if (nmiIsSelected && (useNewCard || noSavedMethod)) {
+                console.log('NMI is pre-selected, auto-initializing CollectJS...');
+                initializeCollectJS();
+            }
         }
     });
 
