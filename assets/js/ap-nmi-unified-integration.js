@@ -271,8 +271,10 @@ jQuery(document).ready(function($) {
             }
             
             // No saved method - show fields and initialize
+            // Reset flag - CollectJS may have been reconfigured by another gateway (e.g. ACH)
             console.log('No saved card, showing new card fields...');
             $('#ap-nmi-wc-fields-container').show();
+            window.nmiCollectJSConfigured = false;
             initializeCollectJS();
         }
     });
@@ -289,17 +291,21 @@ jQuery(document).ready(function($) {
         // If NMI is selected, reinitialize if needed
         if (isNMIPaymentMethodSelected()) {
             var $ccBox = getCCPaymentBox();
-            var $ccSavedRadio = $ccBox.find('.ap-nmi-saved-card-selection input[name="use_save_payment_method"]:checked');
-            var useNewCard = $ccSavedRadio.length > 0 ? $ccSavedRadio.val() !== '1' : true;
-            var noSavedMethod = $('.ap-nmi-saved-card-selection').length === 0;
+            var $savedCardRadio = $ccBox.find('.ap-nmi-saved-card-selection input[name="use_save_payment_method"][value="1"]');
+            var hasSavedCard = $savedCardRadio.length > 0;
             
-            if (useNewCard || noSavedMethod) {
+            if (hasSavedCard) {
+                // Default to saved card after checkout refresh
+                if (!$savedCardRadio.is(':checked')) {
+                    $savedCardRadio.prop('checked', true);
+                }
+                $('#ap-nmi-wc-fields-container').hide();
+                $('.ap-nmi-save-payment-row').hide();
+                $ccBox.find('.ap-nmi-payment-form').removeClass('loading');
+            } else {
                 console.log('NMI still selected after checkout update, reinitializing...');
                 $('#ap-nmi-wc-fields-container').show();
                 initializeCollectJS();
-            } else {
-                // Using saved card - remove loading class if present
-                $ccBox.find('.ap-nmi-payment-form').removeClass('loading');
             }
         }
     });
@@ -318,7 +324,8 @@ jQuery(document).ready(function($) {
             $fieldsContainer.slideDown(200);
             $saveRow.slideDown(200);
             
-            // Initialize CollectJS if not already done
+            // Reset flag - iframes may have been destroyed by another gateway's configure call
+            window.nmiCollectJSConfigured = false;
             initializeCollectJS();
         } else {
             console.log('User selected "Use saved card", hiding fields...');
