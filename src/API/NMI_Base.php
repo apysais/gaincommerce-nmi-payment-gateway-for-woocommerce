@@ -223,7 +223,7 @@ class NMI_Base
             'cookies'     => [],
             'sslverify'   => true,
         ];
-
+        
         $response = wp_remote_post($endpoint, $args);
 
         if (is_wp_error($response)) {
