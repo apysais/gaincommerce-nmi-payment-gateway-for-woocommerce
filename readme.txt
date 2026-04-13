@@ -3,7 +3,7 @@ Contributors: allan.casilum, gaincommerce
 Tags: nmi, woocommerce, payment gateway, credit card, pci
 Requires at least: 6.8
 Tested up to: 6.9
-Stable tag: 1.13.0
+Stable tag: 1.13.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Requires Plugins: woocommerce
@@ -12,22 +12,24 @@ PCI-compliant payment gateway integration between NMI and WooCommerce. Seamlessl
 
 == Description ==
 
-The <strong>Gain Commerce NMI Payment Gateway for WooCommerce</strong> is the premier free NMI plugin for secure, flexible credit card processing on your WooCommerce store. This plugin offers easy integration into WooCommerce</strong> to create a seamless customer checkout experience. Achieve top-tier security with full PCI-DSS Compliance through the NMI payment gateway, utilizing Collect.js for safe data tokenization that keeps sensitive card data off your server. 
+The <strong>Gain Commerce NMI Payment Gateway for WooCommerce</strong> is the premier free NMI plugin for secure, flexible credit card processing on your WooCommerce store. Developed for WooCommerce Blocks and HPOS compatibility. This plugin offers easy integration into WooCommerce to create a seamless customer checkout experience. Achieve top-tier security with full PCI-DSS Compliance through the NMI payment gateway, utilizing Collect.js for safe data tokenization that keeps sensitive card data off your server. 
 
-Merchants gain essential features like the Authorize Now and Capture Later flexibility, easy refunds managed from the WooCommerce dashboard, and the ability to control accepted card types. The plugin also supports advanced features such as Dynamic Descriptors and records AVS/CVV response codes. Streamline your transaction management with a reliable, feature-rich gateway plugin from Gain Commerce.
+Merchants gain essential features such as the Authorize Now and Capture Later flexibility, easy refunds, and voids, all managed from the full WooCommerce dashboard. Merchants can control which card types they accept, including Apple Pay, Google Pay, and PayPal. The plugin also supports advanced features such as Dynamic Descriptors and records AVS/CVV response codes. Streamline your transaction management with a reliable, feature-rich gateway plugin from Gain Commerce.
 
 <strong>Free Plugin Version Includes</strong>
 =
 * <strong>Easy Integration</strong> into WooCommerce for a seamless customer checkout process. 
 * <strong>Secure Payment Processing</strong> with full PCI-DSS Compliance via the NMI payment gateway.
 * <strong>Credit Card Processing</strong> managed entirely by NMI with data tokenization through <a href="https://docs.nmi.com/docs/collectjs/" target="_blank">Collect.js</a>  
+* <strong>Customer Vault</strong> for secure, remote customer card data storage.
 * <strong>Manage Transactions</strong> from the WooCommerce dashboard.
 * <strong>Customizable Settings</strong> in the WooCommerce admin.
 * <strong>Control Card Types</strong> to accept or restrict all major credit card brands, as needed.
 * <strong>Receipts</strong> from the WooCommerce dashboard through NMI.
-* <strong>Refunds</strong> from the WooCommerce dashboard.
+* <strong>Refunds/Voids</strong> from the WooCommerce dashboard.
 * <strong>AVS/CVV Response Codes</strong> recorded in order notes.
 * <strong>Dynamic Descriptors</strong> variable descriptors for customer statements.
+* <strong>Digital Wallets</strong> supported, including Apple Pay, Google Pay, and PayPal.
 * <strong>Authorize Now and Capture Later</strong> flexibility for transactions occurring at a later date.
 * <strong>Shipping Info</strong> sent to NMI transaction ledger.
 * <strong>AVS/CVV Response Codes</strong> recorded in order notes.
@@ -38,6 +40,7 @@ Merchants gain essential features like the Authorize Now and Capture Later flexi
 * <strong>ACH Payments</strong> integrated electronic transfers through the ACH network.
 * <strong>Stored Payments</strong> for card or ACH payments in the PCI-compliant Customer Vault.
 * <strong>3D Secure 2 (3DS2)</strong> authentication to reduce fraud. PSD2/SCA Compliant.
+* <strong>WooCommerce Subscriptions</strong>compatible to create and manage recurring payments.
 
 <strong>Important Requirements:</strong>
 =
@@ -98,13 +101,13 @@ Yes. Utilizing NMI's Collect.js to tokenize payment data, sensitive information 
 Yes. WooCommerce 6.8 or higher must be installed and active.
 
 = Does this plugin require a Network Merchants account? = 
-Yes. An active payment gateway account at NMI is required.  <a href="https://www.alliedpay.com" target="_blank">Allied Payments</a>, our preferred provider, can help set up accounts.
+Yes. An active NMI payment gateway account is required.  Contact <a href="https://www.alliedpayments.com" target="_blank">Allied Payments</a>, our preferred provider, to set up NMI payment gateway accounts.
 
 = Is an SSL required? = 
-Yes. A valid SSL certificate is required to protect customer credit card account information and is a requirement for PCI-DSS compliance. 
+Yes. A valid SSL certificate is required to protect customer credit card account information and to meet PCI-DSS compliance requirements. 
 
  = What information is passed to NMI? =
-Payment account information is only transferred through tokenization to maintain absolute PCI Compliance. No sensitive payment information is sent unsecured.
+Payment account information is only transferred through tokenization to maintain absolute PCI Compliance. No sensitive payment information is sent over unsecured channels.
 
  = Does this plugin store customer information? =
 No. This plugin does not store any customer credit card numbers or personal customer information.
@@ -120,8 +123,9 @@ Visit <a href="https://www.gaincommerce.com/support" target="_blank">gaincommerc
 
 
 == Changelog ==
-= 1.13.0 =
+= 1.13.1 =
 * Add WooCommerce Subscriptions support for automatic recurring payments. Requires WooCommerce Subscriptions plugin and Premium Add-on.
+* Maintenance
 
 = 1.12.0 =
 * Fix checkout issue in loading NMI in legacy and block base.
@@ -151,7 +155,7 @@ Visit <a href="https://www.gaincommerce.com/support" target="_blank">gaincommerc
 = 1.7.6 =
 * Integrate restrict card type in block checkout
 * Integrate restrict card type in legacy checkout
-* Integrate collectjs into WC checkout blocks
+* Integrate CollectJS into WC checkout blocks
 * Integrate WC blocks
 * Add CollectJS to legacy checkout
 * WooCommerce Legacy checkout work on NMI
