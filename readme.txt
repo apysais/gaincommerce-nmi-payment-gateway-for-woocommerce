@@ -49,6 +49,7 @@ Merchants gain essential features like the Authorize Now and Capture Later flexi
 <strong>Compatibility:</strong>
 =
 * WooCommerce 8.0+ (HPOS only)
+* WooCommerce Subscription 8.6.0
 * WordPress 6.8.*
 
 == Source Code ==
