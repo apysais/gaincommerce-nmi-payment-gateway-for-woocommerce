@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('AP_NMI_PAYMENT_GATEWAY_VERSION', '1.12.0');
+define('AP_NMI_PAYMENT_GATEWAY_VERSION', '1.13.0');
 define('AP_NMI_PAYMENT_GATEWAY_PLUGIN_FILE', __FILE__);
 define('AP_NMI_PAYMENT_GATEWAY_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('AP_NMI_PAYMENT_GATEWAY_PLUGIN_URL', plugin_dir_url(__FILE__));

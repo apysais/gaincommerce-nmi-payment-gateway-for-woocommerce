@@ -3,7 +3,7 @@ Contributors: allan.casilum, gaincommerce
 Tags: nmi, woocommerce, payment gateway, credit card, pci
 Requires at least: 6.8
 Tested up to: 6.9
-Stable tag: 1.12.0
+Stable tag: 1.13.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Requires Plugins: woocommerce
@@ -119,6 +119,9 @@ Visit <a href="https://www.gaincommerce.com/support" target="_blank">gaincommerc
 
 
 == Changelog ==
+= 1.13.0 =
+* Add WooCommerce Subscriptions support for automatic recurring payments. Requires WooCommerce Subscriptions plugin and Premium Add-on.
+
 = 1.12.0 =
 * Fix checkout issue in loading NMI in legacy and block base.
 * Fix UI fields in checkout page both in legacy and block base.
