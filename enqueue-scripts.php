@@ -40,6 +40,56 @@ add_action('wp_enqueue_scripts', function(){
 	);
 
 	wp_register_style('ap-nmi-unified-styles', apnmi_get_plugin_dir_url() . 'assets/css/ap-nmi-unified-styles.css', [], AP_NMI_PAYMENT_GATEWAY_VERSION);
+
+	// ── Digital Wallet Scripts (checkout page only, legacy checkout only) ──────
+	if ( is_checkout() && ! is_order_received_page() ) {
+
+		$apple_pay_enabled  = class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
+			&& \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_apple_pay_enabled();
+		$google_pay_enabled = class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
+			&& \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_google_pay_enabled();
+
+		if ( $apple_pay_enabled ) {
+			wp_register_script(
+				'nmi-apple-pay',
+				apnmi_get_plugin_dir_url() . 'assets/js/nmi-apple-pay.js',
+				[ 'jquery', 'nmi-collectjs' ],
+				AP_NMI_PAYMENT_GATEWAY_VERSION,
+				true
+			);
+			wp_localize_script(
+				'nmi-apple-pay',
+				'ap_nmi_apple_pay_params',
+				[
+					'apple_merchant_id' => \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::get_apple_merchant_id(),
+					'public_key'        => \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::get_public_key(),
+					'error_message'     => __( 'Apple Pay failed. Please try again or use a different payment method.', 'gaincommerce-nmi-payment-gateway-for-woocommerce' ),
+				]
+			);
+			wp_enqueue_script( 'nmi-apple-pay' );
+		}
+
+		if ( $google_pay_enabled ) {
+			wp_register_script(
+				'nmi-google-pay',
+				apnmi_get_plugin_dir_url() . 'assets/js/nmi-google-pay.js',
+				[ 'jquery', 'nmi-collectjs' ],
+				AP_NMI_PAYMENT_GATEWAY_VERSION,
+				true
+			);
+			wp_localize_script(
+				'nmi-google-pay',
+				'ap_nmi_google_pay_params',
+				[
+					'google_merchant_id' => \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::get_google_merchant_id(),
+					'public_key'         => \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::get_public_key(),
+					'locale'             => get_locale(),
+					'error_message'      => __( 'Google Pay failed. Please try again or use a different payment method.', 'gaincommerce-nmi-payment-gateway-for-woocommerce' ),
+				]
+			);
+			wp_enqueue_script( 'nmi-google-pay' );
+		}
+	}
 });
 
 // Add the data-tokenization-key attribute

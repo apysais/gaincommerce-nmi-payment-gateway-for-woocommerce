@@ -340,6 +340,33 @@ class Gateway extends WC_Payment_Gateway
             $save_payment_enabled = \GainCommerceNmiEnterprise\Save_Card_Settings::is_save_card_enabled();
         }
 
+        // Render digital wallet buttons for legacy checkout
+        $apple_pay_enabled  = class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
+            && \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_apple_pay_enabled();
+        $google_pay_enabled = class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
+            && \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_google_pay_enabled();
+
+        if ($apple_pay_enabled || $google_pay_enabled) {
+            echo '<div class="nmi-digital-wallets-wrap">';
+
+            if ($apple_pay_enabled) {
+                echo '<div class="nmi-apple-pay-wrap" style="margin-bottom:10px;">';
+                echo '<div id="nmi-apple-pay-button"></div>';
+                echo '</div>';
+            }
+
+            if ($google_pay_enabled) {
+                echo '<div class="nmi-google-pay-wrap" style="margin-bottom:10px;">';
+                echo '<div id="nmi-google-pay-button"></div>';
+                echo '</div>';
+            }
+
+            echo '<div class="nmi-or-divider" style="text-align:center;margin:10px 0;color:#999;">— '
+                . esc_html__('or pay with card', 'gaincommerce-nmi-payment-gateway-for-woocommerce')
+                . ' —</div>';
+            echo '</div>';
+        }
+
         $args = [
             'gateway_id'        => $this->id,
             'description'       => $this->description,

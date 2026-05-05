@@ -12,6 +12,9 @@ namespace APNMIPaymentGateway;
 use APNMIPaymentGateway\Single_Instance_Trait;
 use APNMIPaymentGateway\Gateway;
 use APNMIPaymentGateway\WC\NMI_Blocks_Payment_Method;
+use APNMIPaymentGateway\WC\Blocks\NMI_Apple_Pay_Blocks;
+use APNMIPaymentGateway\WC\Blocks\NMI_Google_Pay_Blocks;
+use APNMIPaymentGateway\Settings\Digital_Wallet_Settings;
 
 /**
  * Main Plugin Class
@@ -49,6 +52,9 @@ class Plugin
 
         // Initialize gateway settings
         add_action('init', [$this, 'init_gateway']);
+
+        // Initialize digital wallet settings (injects fields into CC gateway admin)
+        Digital_Wallet_Settings::init();
 
         // Initialize WooCommerce Blocks integration
         add_action('woocommerce_blocks_loaded', [$this, 'init_blocks_support']);
@@ -104,6 +110,16 @@ class Plugin
                 'woocommerce_blocks_payment_method_type_registration',
                 function ($payment_method_registry) {
                     $payment_method_registry->register(new NMI_Blocks_Payment_Method());
+
+                    // Register Apple Pay express payment method (blocks)
+                    if (Digital_Wallet_Settings::is_apple_pay_enabled()) {
+                        $payment_method_registry->register(new NMI_Apple_Pay_Blocks());
+                    }
+
+                    // Register Google Pay express payment method (blocks)
+                    if (Digital_Wallet_Settings::is_google_pay_enabled()) {
+                        $payment_method_registry->register(new NMI_Google_Pay_Blocks());
+                    }
                 }
             );
         }
