@@ -4,73 +4,95 @@
  * Registers Apple Pay as an express payment method (shown above the checkout
  * form) using registerExpressPaymentMethod(). Processes via the existing
  * gaincommerce_nmi CC gateway — no separate gateway class needed.
+ *
+ * CollectJS constraint: configure() can only be called once per page load.
+ * If the NMI CC form (checkout-blocks.js) is also mounted it will include the
+ * applepay field in its own configure call and dispatch tokens here via
+ * window.__nmiWalletCallbacks.applepay.
+ * If the CC form is NOT mounted (customer hasn't selected NMI CC), this
+ * component configures CollectJS itself with only the applepay field so the
+ * button still renders when the browser supports Apple Pay.
  */
 
-import { createElement, useEffect, useRef } from '@wordpress/element';
+import { createElement, useEffect } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import { registerExpressPaymentMethod } from '@woocommerce/blocks-registry';
 import { getSetting } from '@woocommerce/settings';
 
 const settings = getSetting( 'gaincommerce_nmi_apple_pay_express_data', {} );
 
-/**
- * Apple Pay button component.
- * CollectJS mounts the native Apple Pay button into #nmi-apple-pay-button-blocks.
- */
 const ApplePayButton = ( { onClick, onClose } ) => {
-    const initDone = useRef( false );
-
     useEffect( () => {
-        if ( initDone.current ) return;
-        initDone.current = true;
+        // Register our onClick handler so the CollectJS callback (wherever it
+        // fires — CC form or this component) can hand off the token correctly.
+        window.__nmiWalletCallbacks = window.__nmiWalletCallbacks || {};
+        window.__nmiWalletCallbacks.applepay = ( token ) => {
+            console.log( 'NMI Apple Pay Blocks: Token received, triggering express payment.' );
+            onClick( {
+                payment_token: token,
+                nmi_wallet_type: 'applepay',
+            } );
+        };
 
-        if ( typeof CollectJS === 'undefined' ) {
-            console.error( 'NMI Apple Pay Blocks: CollectJS not loaded.' );
-            return;
+        // If CollectJS has NOT been configured yet (CC form not mounted), configure
+        // it here with only the applepay field so the button appears when available.
+        let appleSupported = false;
+        try {
+            appleSupported =
+                window.isSecureContext &&
+                typeof window.ApplePaySession !== 'undefined' &&
+                typeof window.ApplePaySession.canMakePayments === 'function' &&
+                window.ApplePaySession.canMakePayments();
+        } catch ( e ) {
+            // Throws InvalidAccessError on insecure (HTTP) pages — treat as unsupported.
+            console.log( 'NMI Apple Pay Blocks: canMakePayments() unavailable:', e.message );
         }
 
-        CollectJS.configure( {
-            variant: 'inline',
-            fields: {
-                applepay: {
-                    selector: '#nmi-apple-pay-button-blocks',
-                    type: 'buy',
-                    style: {
-                        'button-style': 'black',
-                        'button-type': 'buy',
-                        'border-radius': '4px',
-                        width: '100%',
-                        height: '44px',
-                    },
+        if ( appleSupported && typeof CollectJS !== 'undefined' && ! window.nmiCollectJSBlocksConfigured ) {
+            console.log( 'NMI Apple Pay Blocks: CC form not active, configuring CollectJS for Apple Pay only.' );
+            window.nmiCollectJSBlocksConfigured = true;
+
+            const apayConfig = {
+                selector: '#nmi-apple-pay-button-blocks',
+                style: {
+                    'button-style':  'black',
+                    'button-type':   'buy',
+                    'border-radius': '4px',
+                    width:  '100%',
+                    height: '44px',
                 },
-            },
-            validationCallback: function () {},
-            fieldsAvailableCallback: function () {
-                console.log( 'NMI Apple Pay Blocks: Button rendered.' );
-            },
-            timeoutDuration: 10000,
-            timeoutCallback: function () {
-                console.error( 'NMI Apple Pay Blocks: Timeout waiting for button.' );
-            },
-            callback: function ( response ) {
-                console.log( 'NMI Apple Pay Blocks: Token received.', response.token );
+            };
+            if ( settings.apple_merchant_id ) {
+                apayConfig.appleMerchantId = settings.apple_merchant_id;
+            }
 
-                if ( ! response.token ) {
-                    console.error( 'NMI Apple Pay Blocks: No token in response.' );
-                    onClose();
-                    return;
-                }
+            CollectJS.configure( {
+                variant: 'inline',
+                fields: { applepay: apayConfig },
+                validationCallback: () => {},
+                fieldsAvailableCallback: () => {
+                    console.log( 'NMI Apple Pay Blocks: Button rendered.' );
+                },
+                timeoutDuration: 10000,
+                timeoutCallback: () => {
+                    console.error( 'NMI Apple Pay Blocks: CollectJS timeout.' );
+                },
+                callback: ( response ) => {
+                    if ( response.token && window.__nmiWalletCallbacks && window.__nmiWalletCallbacks.applepay ) {
+                        window.__nmiWalletCallbacks.applepay( response.token );
+                    }
+                },
+            } );
+        }
 
-                // onClick must be called to tell WooCommerce blocks the payment
-                // is ready; pass token via paymentMethodData.
-                onClick( {
-                    payment_token: response.token,
-                    nmi_wallet_type: 'applepay',
-                } );
-            },
-        } );
-    }, [] );
+        return () => {
+            if ( window.__nmiWalletCallbacks ) {
+                delete window.__nmiWalletCallbacks.applepay;
+            }
+        };
+    }, [ onClick ] );
 
+    // The container div is targeted by CollectJS
     return createElement(
         'div',
         { className: 'nmi-apple-pay-blocks-wrap', style: { width: '100%', marginBottom: '8px' } },
@@ -80,14 +102,21 @@ const ApplePayButton = ( { onClick, onClose } ) => {
 
 /**
  * canMakePayment — only show in Safari on Apple devices.
+ * No merchant ID guard — display is allowed during merchant approval review.
  */
 const canMakePayment = () => {
+    if ( ! window.isSecureContext ) return false;
     if ( settings.is_available !== 'yes' ) return false;
-    return (
-        typeof window.ApplePaySession !== 'undefined' &&
-        typeof window.ApplePaySession.canMakePayments === 'function' &&
-        window.ApplePaySession.canMakePayments()
-    );
+    try {
+        return (
+            typeof window.ApplePaySession !== 'undefined' &&
+            typeof window.ApplePaySession.canMakePayments === 'function' &&
+            window.ApplePaySession.canMakePayments()
+        );
+    } catch ( e ) {
+        // Throws InvalidAccessError on insecure (HTTP) pages.
+        return false;
+    }
 };
 
 registerExpressPaymentMethod( {
@@ -105,7 +134,6 @@ registerExpressPaymentMethod( {
     ariaLabel: __( 'Apple Pay', 'gaincommerce-nmi-payment-gateway-for-woocommerce' ),
     supports: {
         features: settings.supports || [ 'products' ],
-        // Express payment methods should not show saved-card UI
         showSavedCards: false,
         showSaveOption: false,
     },

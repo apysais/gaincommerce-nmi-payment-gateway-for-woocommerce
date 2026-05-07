@@ -121,7 +121,19 @@ class NMI_Blocks_Payment_Method extends AbstractPaymentMethodType {
             'wc_gateway_id' => AP_NMI_WC_GATEWAY_ID,
             'save_payment_enabled' => $save_payment_enabled,
             'has_saved_card' => $has_saved_card,
-            'saved_card_details' => $saved_card_details
+            'saved_card_details' => $saved_card_details,
+            // Digital wallet settings (used by checkout-blocks.js to include wallet fields in CollectJS configure)
+            'apple_pay_enabled'  => class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
+                && \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_apple_pay_enabled() ? 'yes' : 'no',
+            'google_pay_enabled' => class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
+                && \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_google_pay_enabled() ? 'yes' : 'no',
+            'apple_merchant_id'  => class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
+                ? \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::get_apple_merchant_id() : '',
+            'google_merchant_id' => class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
+                ? \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::get_google_merchant_id() : '',
+            'country'            => strtoupper( substr( get_option( 'woocommerce_default_country', 'US' ), 0, 2 ) ),
+            'currency'           => get_woocommerce_currency(),
+            'cart_total'         => WC()->cart ? number_format( (float) WC()->cart->get_total( 'edit' ), 2, '.', '' ) : '0.00',
         ];
     }
 

@@ -228,10 +228,11 @@ class Gateway extends WC_Payment_Gateway
                 ],
             ],
             'public_key' => [
-                'title' => __('Live Public Key', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                'title' => __('Tokenization Key (Public Key)', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
                 'type' => 'text',
                 'description' => __(
-                    'Your NMI live public key for authentication.',
+                    '<strong>CollectJS Tokenization Key</strong> — found in your NMI merchant portal under <em>Settings → Security Keys → Tokenization Key</em>. '
+                    . 'This is <strong>not</strong> the API Security Key. The tokenization key is used by CollectJS to securely collect card data in the browser.',
                     'gaincommerce-nmi-payment-gateway-for-woocommerce'
                 ),
                 'default' => '',
@@ -340,32 +341,8 @@ class Gateway extends WC_Payment_Gateway
             $save_payment_enabled = \GainCommerceNmiEnterprise\Save_Card_Settings::is_save_card_enabled();
         }
 
-        // Render digital wallet buttons for legacy checkout
-        $apple_pay_enabled  = class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
-            && \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_apple_pay_enabled();
-        $google_pay_enabled = class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
-            && \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_google_pay_enabled();
-
-        if ($apple_pay_enabled || $google_pay_enabled) {
-            echo '<div class="nmi-digital-wallets-wrap">';
-
-            if ($apple_pay_enabled) {
-                echo '<div class="nmi-apple-pay-wrap" style="margin-bottom:10px;">';
-                echo '<div id="nmi-apple-pay-button"></div>';
-                echo '</div>';
-            }
-
-            if ($google_pay_enabled) {
-                echo '<div class="nmi-google-pay-wrap" style="margin-bottom:10px;">';
-                echo '<div id="nmi-google-pay-button"></div>';
-                echo '</div>';
-            }
-
-            echo '<div class="nmi-or-divider" style="text-align:center;margin:10px 0;color:#999;">— '
-                . esc_html__('or pay with card', 'gaincommerce-nmi-payment-gateway-for-woocommerce')
-                . ' —</div>';
-            echo '</div>';
-        }
+        // Both Apple Pay and Google Pay are rendered as express buttons above all payment
+        // methods via Plugin::render_wallet_express_buttons() — nothing to render here.
 
         $args = [
             'gateway_id'        => $this->id,

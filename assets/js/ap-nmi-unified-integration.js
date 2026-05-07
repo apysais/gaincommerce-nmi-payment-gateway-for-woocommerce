@@ -131,17 +131,46 @@ jQuery(document).ready(function($) {
     };
 
     /**
-     * Initialize CollectJS - should only be called once
-     * Called when NMI payment method is selected
+     * Check if any configured wallet button container has been populated by
+     * CollectJS (i.e. CollectJS injected an iframe / child element into it).
+     * Shows the express wrapper when at least one button has rendered.
+     *
+     * @param  {Object} walletFields  The walletFields object from initializeCollectJS.
+     * @return {boolean}              True if at least one button is rendered.
+     */
+    function nmiCheckWalletButtons(walletFields) {
+        if (!walletFields || Object.keys(walletFields).length === 0) {
+            return false;
+        }
+        var rendered = false;
+        Object.keys(walletFields).forEach(function(type) {
+            var sel = walletFields[type].selector;
+            if ($(sel).children().length > 0) {
+                rendered = true;
+                console.log('NMI: Wallet button rendered for', type, '— showing express wrapper.');
+            }
+        });
+        if (rendered) {
+            $('.nmi-wallet-express-wrap').show();
+        }
+        return rendered;
+    }
+
+    /**
+     * Initialize CollectJS - should only be called once per page load.
+     * Called eagerly on document.ready so that the Google Pay express button
+     * is visible above payment methods before any method is selected.
+     * The CC field containers are already in the DOM at this point (WooCommerce
+     * renders all payment method HTML on page load, just hidden).
      */
     function initializeCollectJS() {
         // Prevent duplicate initialization
         if (window.nmiCollectJSConfigured) {
-            console.log('CollectJS already configured for credit card');
+            console.log('CollectJS already configured');
             return;
         }
 
-        // Check if field containers exist
+        // Check if CC field containers exist (they should be in DOM at page load)
         if ($('#ap-nmi-card-number').length === 0) {
             console.log('NMI credit card field containers not found, skipping initialization');
             return;
@@ -153,9 +182,67 @@ jQuery(document).ready(function($) {
         $('#ap-nmi-wc-fields-container .ap-nmi-fields-loader').show();
 
         // Configure CollectJS with shared settings
+
+        // Build wallet fields when enabled (must be in the same configure call as CC fields)
+        var walletFields = {};
+
+        // Apple Pay: only include if the browser supports it (Safari on Apple device).
+        // No merchant ID gate — display is allowed during merchant approval review.
+        // When the account is approved and the ID is saved in settings, it activates
+        // automatically with no code changes needed.
+        var applePayAvailable = false;
+        if ( ap_nmi_params.apple_pay_enabled === 'yes' && $('#nmi-apple-pay-express').length > 0 ) {
+            try {
+                applePayAvailable = typeof window.ApplePaySession !== 'undefined' && window.ApplePaySession.canMakePayments();
+            } catch (e) {
+                console.log('NMI: ApplePaySession.canMakePayments() unavailable:', e.message);
+            }
+        }
+        if ( applePayAvailable ) {
+            var applePayConfig = {
+                selector: '#nmi-apple-pay-express',
+                style: {
+                    'button-style': 'black',
+                    'button-type':  'buy',
+                    'border-radius': '4px',
+                    width:  '100%',
+                    height: '44px',
+                },
+            };
+            if (ap_nmi_params.apple_merchant_id) {
+                applePayConfig.appleMerchantId = ap_nmi_params.apple_merchant_id;
+            }
+            walletFields.applepay = applePayConfig;
+            console.log('NMI: Including Apple Pay express field in CollectJS config');
+        } else if (ap_nmi_params.apple_pay_enabled === 'yes') {
+            console.log('NMI: Apple Pay not supported in this browser — button hidden');
+        }
+
+        // Google Pay: use the express container rendered above payment methods.
+        // No merchant ID required during Google Pay merchant approval review.
+        // Google Pay requires a secure context (HTTPS); skip silently on HTTP.
+        if (
+            ap_nmi_params.google_pay_enabled === 'yes' &&
+            window.isSecureContext &&
+            $('#nmi-google-pay-express').length > 0
+        ) {
+            walletFields.googlePay = {
+                selector:    '#nmi-google-pay-express',
+                buttonType:  'buy',
+                buttonColor: 'black',
+            };
+            if (ap_nmi_params.google_merchant_id) {
+                walletFields.googlePay.googlePayMerchantId = ap_nmi_params.google_merchant_id;
+            }
+            console.log('NMI: Including Google Pay express field in CollectJS config');
+        }
+
         CollectJS.configure({
             paymentSelector: '#place_order, .wc-block-components-checkout-place-order-button',
             variant: "inline",
+            country:  ap_nmi_params.country  || 'US',
+            currency: ap_nmi_params.currency || 'USD',
+            price:    ap_nmi_params.cart_total || '0.00',
             invalidCss: {
                 color: "#e74c3c",
                 "border-color": "#e74c3c",
@@ -172,7 +259,7 @@ jQuery(document).ready(function($) {
                 color: "black",
                 "border-color": "#4681f4",
             },
-            fields: {
+            fields: Object.assign({
                 ccnumber: {
                     selector: "#ap-nmi-card-number",
                     title: "Card Number",
@@ -189,7 +276,7 @@ jQuery(document).ready(function($) {
                     title: "CVV Code",
                     placeholder: "123",
                 }
-            },
+            }, walletFields),
             timeoutDuration: 10000,
             timeoutCallback: function () {
                 console.log("The tokenization didn't respond in the expected timeframe.");
@@ -197,7 +284,7 @@ jQuery(document).ready(function($) {
                 nmiEnableSubmitButton();
             },
             fieldsAvailableCallback: function () {
-                console.log("Collect.js loaded the fields onto the form");
+                console.log("Collect.js loaded the CC fields onto the form");
                 // Hide loading indicator
                 $('#ap-nmi-wc-fields-container .ap-nmi-fields-loader').hide();
                 // Reset validation when fields are available
@@ -206,13 +293,25 @@ jQuery(document).ready(function($) {
                     ccexp: false,
                     cvv: false
                 };
-                
-                // Query and log iframe information after fields are ready
-                /*setTimeout(function() {
-                    queryCollectJSIframes();
-                }, 500);*/
+                // Wallet buttons may already be rendered — do an immediate check
+                // (polling below will catch late renders too)
+                nmiCheckWalletButtons(walletFields);
             },
             callback: function(response) {
+                // Wallet payment — submit the checkout form with the wallet token
+                if (response.wallet || (!response.card && (ap_nmi_params.apple_pay_enabled === 'yes' || ap_nmi_params.google_pay_enabled === 'yes'))) {
+                    var walletType = response.wallet || 'unknown';
+                    console.log('NMI: Wallet token received for', walletType);
+                    var $form = $('form.woocommerce-checkout');
+                    $form.find('[name="payment_token"]').remove();
+                    $form.find('[name="nmi_wallet_type"]').remove();
+                    $('<input>').attr({ type: 'hidden', name: 'payment_token',  value: response.token   }).appendTo($form);
+                    $('<input>').attr({ type: 'hidden', name: 'nmi_wallet_type', value: walletType }).appendTo($form);
+                    $form.submit();
+                    return;
+                }
+
+                // CC payment (existing logic)
                 let restricted_card = ap_nmi_params.gateway_config.restricted_card_types;
                 
                 if (restricted_card.includes(response.card.type)) {
@@ -230,7 +329,26 @@ jQuery(document).ready(function($) {
 
         // Mark as configured
         window.nmiCollectJSConfigured = true;
-        console.log('CollectJS configuration complete for credit card');
+        console.log('CollectJS configuration complete for credit card + wallets:', Object.keys(walletFields));
+
+        // Poll for wallet button render (CollectJS renders wallet buttons asynchronously
+        // and independently from the CC fieldsAvailableCallback).
+        // Checks every 300 ms for up to 15 seconds.
+        if (Object.keys(walletFields).length > 0) {
+            var walletPollCount = 0;
+            var walletPollMax   = 50; // 50 × 300 ms = 15 s
+            var walletPollId    = setInterval(function () {
+                walletPollCount++;
+                var found = nmiCheckWalletButtons(walletFields);
+                if (found || walletPollCount >= walletPollMax) {
+                    clearInterval(walletPollId);
+                    if (!found) {
+                        console.log('NMI: Wallet buttons did not render after 15 s. ' +
+                            'Ensure the NMI tokenization key is authorized for Google Pay / Apple Pay.');
+                    }
+                }
+            }, 300);
+        }
     }
 
     /**
@@ -249,70 +367,65 @@ jQuery(document).ready(function($) {
     }
 
     /**
-     * Handle payment method selection - initialize CollectJS when NMI is selected
+     * Handle payment method selection.
+     * CollectJS is already configured at page load (eager init).
+     * We only need to show the CC field containers when NMI is selected.
      */
     $(document.body).on('payment_method_selected', function() {
         if (isNMIPaymentMethodSelected()) {
-            console.log('NMI credit card payment method selected, initializing CollectJS...');
-            
-            // Scope radio queries to CC payment box only
+            console.log('NMI credit card payment method selected.');
+
             var $ccBox = getCCPaymentBox();
             var $savedCardRadio = $ccBox.find('.ap-nmi-saved-card-selection input[name="use_save_payment_method"][value="1"]');
             var hasSavedCard = $savedCardRadio.length > 0;
-            
+
             if (hasSavedCard) {
-                console.log('Found saved card, defaulting to saved payment method...');
-                
-                // Remove loading class if present
                 $ccBox.find('.ap-nmi-payment-form').removeClass('loading');
-                
-                // Set saved card as checked if not already
                 if (!$savedCardRadio.is(':checked')) {
                     $savedCardRadio.prop('checked', true);
                     $('#ap-nmi-wc-fields-container').hide();
                     $('.ap-nmi-save-payment-row').hide();
                 }
-                return; // Don't initialize CollectJS, fields are hidden
+            } else {
+                // Fields should already be in DOM; ensure container is visible.
+                // CollectJS iframes may have been destroyed by another gateway — reinit if needed.
+                if (!window.nmiCollectJSConfigured) {
+                    console.log('NMI selected and CollectJS not configured, reinitializing...');
+                    initializeCollectJS();
+                }
             }
-            
-            // No saved method - show fields and initialize
-            // Reset flag - CollectJS may have been reconfigured by another gateway (e.g. ACH)
-            console.log('No saved card, showing new card fields...');
-            $('#ap-nmi-wc-fields-container').show();
-            window.nmiCollectJSConfigured = false;
-            initializeCollectJS();
         }
     });
 
     /**
      * Handle checkout updates - reset and reinitialize if needed
      */
+    /**
+     * Handle checkout updates (e.g. shipping method change).
+     * WooCommerce replaces the payment section via AJAX fragments, which destroys
+     * CollectJS iframes. Reset the flag and reinitialize so the CC fields and
+     * Google Pay express button are restored.
+     */
     $(document.body).on('updated_checkout', function() {
-        console.log('Checkout updated, checking if CollectJS needs reinitialization...');
-        
-        // Reset the configuration flag to allow reinitialization
+        console.log('Checkout updated — reinitializing CollectJS...');
         window.nmiCollectJSConfigured = false;
-        
-        // If NMI is selected, reinitialize if needed
-        if (isNMIPaymentMethodSelected()) {
-            var $ccBox = getCCPaymentBox();
-            var $savedCardRadio = $ccBox.find('.ap-nmi-saved-card-selection input[name="use_save_payment_method"][value="1"]');
-            var hasSavedCard = $savedCardRadio.length > 0;
-            
-            if (hasSavedCard) {
-                // Default to saved card after checkout refresh
-                if (!$savedCardRadio.is(':checked')) {
-                    $savedCardRadio.prop('checked', true);
-                }
-                $('#ap-nmi-wc-fields-container').hide();
-                $('.ap-nmi-save-payment-row').hide();
-                $ccBox.find('.ap-nmi-payment-form').removeClass('loading');
-            } else {
-                console.log('NMI still selected after checkout update, reinitializing...');
-                $('#ap-nmi-wc-fields-container').show();
-                initializeCollectJS();
+
+        var $ccBox = getCCPaymentBox();
+        var $savedCardRadio = $ccBox.find('.ap-nmi-saved-card-selection input[name="use_save_payment_method"][value="1"]');
+        var hasSavedCard = $savedCardRadio.length > 0;
+
+        if (hasSavedCard) {
+            if (!$savedCardRadio.is(':checked')) {
+                $savedCardRadio.prop('checked', true);
             }
+            $('#ap-nmi-wc-fields-container').hide();
+            $('.ap-nmi-save-payment-row').hide();
+            $ccBox.find('.ap-nmi-payment-form').removeClass('loading');
         }
+
+        // Always reinitialize on checkout update — the Google Pay express button
+        // container is also rebuilt by the fragment refresh.
+        initializeCollectJS();
     });
 
     /**
@@ -340,45 +453,30 @@ jQuery(document).ready(function($) {
     });
 
     /**
-     * On page load, check if NMI is the only payment method or is already selected
-     * Auto-initialize for better UX in single payment method scenarios
+     * Eager initialization on page load.
+     * CollectJS is configured immediately so the Google Pay express button
+     * is visible above payment methods before any method is selected.
+     * The CC field containers are already in the DOM (WooCommerce renders all
+     * payment method HTML at page load, just hidden).
      */
     $(function() {
-        var paymentMethods = $('input[name="payment_method"]');
-        var nmiIsOnlyMethod = paymentMethods.length === 1 && isNMIPaymentMethodSelected();
-        var nmiIsSelected = paymentMethods.length > 1 && isNMIPaymentMethodSelected();
-        
-        // If NMI payment method is currently visible/selected
-        if (nmiIsOnlyMethod || nmiIsSelected) {
-            // Scope radio queries to CC payment box only
-            var $ccBox = getCCPaymentBox();
-            var $savedCardRadio = $ccBox.find('.ap-nmi-saved-card-selection input[name="use_save_payment_method"][value="1"]');
-            var hasSavedCard = $savedCardRadio.length > 0;
-            
-            if (hasSavedCard) {
-                // Remove loading class - saved payment doesn't need CollectJS fields
-                $ccBox.find('.ap-nmi-payment-form').removeClass('loading');
-                
-                if (!$savedCardRadio.is(':checked')) {
-                    console.log('Setting saved card as default selection...');
-                    $savedCardRadio.prop('checked', true);
-                    $('#ap-nmi-wc-fields-container').hide();
-                    $('.ap-nmi-save-payment-row').hide();
-                }
-            }
-            
-            // Check if "use new card" is selected (or no saved method exists)
-            var useNewCard = hasSavedCard ? !$savedCardRadio.is(':checked') : true;
-            var noSavedMethod = !hasSavedCard;
-            
-            if (nmiIsOnlyMethod && (useNewCard || noSavedMethod)) {
-                console.log('NMI is the only payment method, auto-initializing CollectJS...');
-                initializeCollectJS();
-            } else if (nmiIsSelected && (useNewCard || noSavedMethod)) {
-                console.log('NMI is pre-selected, auto-initializing CollectJS...');
-                initializeCollectJS();
+        var $ccBox = getCCPaymentBox();
+        var $savedCardRadio = $ccBox.find('.ap-nmi-saved-card-selection input[name="use_save_payment_method"][value="1"]');
+        var hasSavedCard = $savedCardRadio.length > 0;
+
+        if (hasSavedCard) {
+            $ccBox.find('.ap-nmi-payment-form').removeClass('loading');
+            if (!$savedCardRadio.is(':checked')) {
+                $savedCardRadio.prop('checked', true);
+                $('#ap-nmi-wc-fields-container').hide();
+                $('.ap-nmi-save-payment-row').hide();
             }
         }
+
+        // Always configure CollectJS on page load so the Google Pay express button
+        // renders immediately regardless of which payment method is pre-selected.
+        console.log('NMI: Eagerly initializing CollectJS on page load...');
+        initializeCollectJS();
     });
 
     window.checkValidCardType = function(response) {

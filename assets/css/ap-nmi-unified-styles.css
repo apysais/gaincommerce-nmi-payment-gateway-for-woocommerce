@@ -1,3 +1,28 @@
+/* ── Wallet express buttons (Apple Pay + Google Pay, above payment methods) ── */
+
+.nmi-wallet-express-wrap {
+    margin-bottom: 20px;
+}
+
+.nmi-wallet-button {
+    margin-bottom: 8px;
+}
+
+/* Individual button containers: take up no space until CollectJS injects the iframe */
+.nmi-wallet-button:empty {
+    display: none;
+    margin-bottom: 0;
+}
+
+.nmi-or-divider {
+    text-align: center;
+    margin: 8px 0 0;
+    color: #999;
+    font-size: 13px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────── */
+
 .ap-nmi-collectjs-container{
     margin-bottom: 15px;
 }

@@ -35,6 +35,8 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
     const savePaymentMethodRef = useRef(false); // Ref to hold current value
     const useSavedCardRef = useRef(false); // Ref for saved card selection
     const promiseRef = useRef(null); // To hold promise resolve/reject functions
+    const walletTokenRef = useRef(null); // Holds wallet token after wallet button tap
+    const walletTypeRef  = useRef(null); // Holds wallet type (applepay/googlepay)
 
     // Keep refs in sync with state
     useEffect(() => {
@@ -55,25 +57,113 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
 
         console.log('AP NMI Blocks: Initializing CollectJS...');
 
+        // Build wallet fields to include in the same configure call as CC fields.
+        // CollectJS can only be configured once, so all fields must be declared together.
+        // Guard each wallet type: only add it when the browser actually supports it,
+        // otherwise CollectJS throws "Could not create PaymentRequestAbstraction"
+        // and crashes the entire CC form init too.
+        const walletFields = {};
+
+        // Apple Pay: requires Safari on Apple hardware AND a secure context (HTTPS).
+        // canMakePayments() can return true on HTTP in Safari but CollectJS will then
+        // throw InvalidAccessError when creating the ApplePaySession, crashing React.
+        let applePaySupported = false;
+        if ( settings.apple_pay_enabled === 'yes' && window.isSecureContext ) {
+            try {
+                applePaySupported =
+                    typeof window.ApplePaySession !== 'undefined' &&
+                    window.ApplePaySession.canMakePayments();
+            } catch ( e ) {
+                // Throws InvalidAccessError on insecure (HTTP) pages — treat as unsupported.
+                console.log( 'AP NMI Blocks: Apple Pay canMakePayments() unavailable:', e.message );
+            }
+        }
+
+        if (applePaySupported) {
+            const apayConfig = {
+                selector: '#nmi-apple-pay-button-blocks',
+                style: {
+                    'button-style':  'black',
+                    'button-type':   'buy',
+                    'border-radius': '4px',
+                    width:  '100%',
+                    height: '44px',
+                },
+            };
+            if (settings.apple_merchant_id) {
+                apayConfig.appleMerchantId = settings.apple_merchant_id;
+            }
+            walletFields.applepay = apayConfig;
+            console.log('AP NMI Blocks: Including Apple Pay field in CollectJS config');
+        } else if (settings.apple_pay_enabled === 'yes') {
+            console.log('AP NMI Blocks: Apple Pay not supported in this browser — field skipped');
+        }
+
+        // Google Pay: include if enabled (CollectJS handles availability internally)
+        // Google Pay requires a secure context (HTTPS); skip silently on HTTP.
+        const googlePaySupported =
+            settings.google_pay_enabled === 'yes' && window.isSecureContext;
+
+        if (googlePaySupported) {
+            const gpayConfig = {
+                selector:    '#nmi-google-pay-button-blocks',
+                buttonType:  'buy',
+                buttonColor: 'black',
+            };
+            if (settings.google_merchant_id) {
+                gpayConfig.googlePayMerchantId = settings.google_merchant_id;
+            }
+            walletFields.googlePay = gpayConfig;
+            console.log('AP NMI Blocks: Including Google Pay field in CollectJS config');
+        }
+
         CollectJS.configure({
             variant: "inline",
-            invalidCss: { color: "#e74c3c", "border-color": "#e74c3c" },
+            country:  settings.country  || 'US',
+            currency: settings.currency || 'USD',
+            price:    settings.cart_total || '0.00',
             validCss: { color: "black", "border-color": "#2ecc71" },
             placeholderCss: { color: "darkgray", "background-color": "#ffffff" },
             focusCss: { color: "black", "border-color": "#4681f4" },
-            fields: {
+            fields: Object.assign({
                 ccnumber: { selector: "#ap-nmi-card-number", title: "Card Number", placeholder: "0000 0000 0000 0000" },
                 ccexp: { selector: "#ap-nmi-expiry-date", title: "Card Expiration", placeholder: "MM/YY" },
                 cvv: { display: "show", selector: "#ap-nmi-card-cvv", title: "CVV", placeholder: "123" }
-            },
+            }, walletFields),
             validationCallback: (field, status, message) => {
                 console.log('AP NMI Blocks: Validation:', field, status, message);
                 setFieldValidity(prev => ({ ...prev, [field.field || field]: status }));
             },
             callback: (response) => {
                 console.log('AP NMI Blocks: CollectJS callback triggered.', response);
-                
-                // If there's an active promise, handle it
+
+                // Wallet payment — dispatch to the registered express payment method
+                // via window.__nmiWalletCallbacks so WooCommerce Blocks handles the
+                // express flow correctly (Apple Pay and Google Pay Blocks each register
+                // their onClick handler there).
+                if (response.wallet || (!response.card && (settings.apple_pay_enabled === 'yes' || settings.google_pay_enabled === 'yes'))) {
+                    const walletType = response.wallet || 'unknown';
+                    console.log('AP NMI Blocks: Wallet token received for', walletType, response.token);
+
+                    const cb = window.__nmiWalletCallbacks && window.__nmiWalletCallbacks[walletType];
+                    if (typeof cb === 'function') {
+                        cb(response.token);
+                    } else {
+                        // Fallback: no express method registered, store token and click place order
+                        console.warn('AP NMI Blocks: No wallet callback registered for', walletType, '— falling back to place-order click');
+                        walletTokenRef.current = response.token;
+                        walletTypeRef.current  = walletType;
+                        const placeOrderBtn = document.querySelector('.wc-block-components-checkout-place-order-button');
+                        if (placeOrderBtn) {
+                            placeOrderBtn.click();
+                        } else {
+                            console.error('AP NMI Blocks: Place Order button not found');
+                        }
+                    }
+                    return;
+                }
+
+                // CC payment (existing promise-based flow)
                 if (promiseRef.current) {
                     // Clear the timeout since we got a response
                     if (promiseRef.current.clearTimeout) {
@@ -148,6 +238,26 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
         const unsubscribe = onPaymentSetup(() => {
             console.log('AP NMI Blocks: onPaymentSetup triggered.');
             setError(null); // Clear previous errors
+
+            // Wallet payment — token already captured when wallet button was tapped
+            if (walletTokenRef.current) {
+                const token    = walletTokenRef.current;
+                const walletType = walletTypeRef.current;
+                walletTokenRef.current = null;
+                walletTypeRef.current  = null;
+                console.log('AP NMI Blocks: Resolving wallet payment:', walletType, token);
+                return {
+                    type: emitResponse.responseTypes.SUCCESS,
+                    meta: {
+                        paymentMethodData: {
+                            payment_token:           token,
+                            nmi_wallet_type:         walletType,
+                            save_payment_method:     '0',
+                            use_save_payment_method: '0',
+                        },
+                    },
+                };
+            }
 
             // Check if 3DS is enabled
             const threeDSEnabled = typeof ap_nmi_threeds_config !== 'undefined' && ap_nmi_threeds_config.enable_3ds === 'yes';
@@ -566,8 +676,42 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
     }, [onPaymentSetup, fieldValidity, useSavedCard]);
 
     // Render the form
+    // Both wallet types require HTTPS — guard with isSecureContext before any
+    // browser API call so HTTP dev environments don't throw or crash React.
+    let applePayAvailable = false;
+    if ( window.isSecureContext && settings.apple_pay_enabled === 'yes' && settings.apple_merchant_id ) {
+        try {
+            applePayAvailable =
+                typeof window.ApplePaySession !== 'undefined' &&
+                window.ApplePaySession.canMakePayments();
+        } catch ( e ) {
+            // InvalidAccessError on HTTP — treat as unsupported
+        }
+    }
+    const googlePayAvailable = settings.google_pay_enabled === 'yes' && window.isSecureContext;
+    const showWallets = applePayAvailable || googlePayAvailable;
+
     return (
         <div className="ap-nmi-payment-form-blocks">
+            {/* Digital Wallet Buttons — shown above CC form when enabled and supported */}
+            {showWallets && (
+                <div className="nmi-digital-wallets-wrap" style={{ marginBottom: '16px' }}>
+                    {applePayAvailable && (
+                        <div className="nmi-apple-pay-wrap" style={{ marginBottom: '10px' }}>
+                            <div id="nmi-apple-pay-button-blocks"></div>
+                        </div>
+                    )}
+                    {googlePayAvailable && (
+                        <div className="nmi-google-pay-wrap" style={{ marginBottom: '10px' }}>
+                            <div id="nmi-google-pay-button-blocks"></div>
+                        </div>
+                    )}
+                    <div className="nmi-or-divider" style={{ textAlign: 'center', margin: '10px 0', color: '#999' }}>
+                        {__('— or pay with card —', 'gaincommerce-nmi-payment-gateway-for-woocommerce')}
+                    </div>
+                </div>
+            )}
+
             {error && (
                 <div className="woocommerce-error" role="alert" style={{
                     backgroundColor: '#e2401c',

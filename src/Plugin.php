@@ -62,6 +62,14 @@ class Plugin
         // Ensure gateway is marked as blocks compatible
         //add_filter('woocommerce_payment_gateway_supports', [$this, 'gateway_supports_blocks'], 10, 3);
 
+        // Render Apple Pay + Google Pay express buttons above payment methods on classic checkout.
+        // Two hooks cover different WooCommerce theme templates:
+        //   woocommerce_review_order_before_payment — fires inside the order review table (default)
+        //   woocommerce_before_checkout_form       — fires before the entire form (some themes)
+        // A static flag prevents double output if both hooks fire on the same page.
+        add_action('woocommerce_review_order_before_payment', [$this, 'render_wallet_express_buttons']);
+        add_action('woocommerce_before_checkout_form', [$this, 'render_wallet_express_buttons'], 5);
+
         // Load plugin text domain
         add_action('init', [$this, 'load_textdomain']);
 
@@ -70,8 +78,6 @@ class Plugin
             'plugin_action_links_' . AP_NMI_PAYMENT_GATEWAY_PLUGIN_BASENAME,
             [$this, 'add_action_links']
         );
-
-        
     }
 
     /**
@@ -103,6 +109,58 @@ class Plugin
      *
      * @return void
      */
+    /**
+     * Render Apple Pay + Google Pay express button containers above the payment
+     * methods list on classic checkout. CollectJS injects the actual buttons on
+     * page load. Plug-and-play: accounts activate once merchant IDs are set in
+     * gateway settings — zero code changes required.
+     */
+    public function render_wallet_express_buttons(): void
+    {
+        if ( ! is_checkout() ) {
+            return;
+        }
+
+        // Only for classic checkout — blocks checkout uses registered express payment methods.
+        if ( has_block('woocommerce/checkout') ) {
+            return;
+        }
+
+        // Prevent double output when both hooks fire on the same page load.
+        static $rendered = false;
+        if ( $rendered ) {
+            return;
+        }
+        $rendered = true;
+
+        if ( ! class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings') ) {
+            return;
+        }
+
+        $apple_pay_enabled  = Digital_Wallet_Settings::is_apple_pay_enabled();
+        $google_pay_enabled = Digital_Wallet_Settings::is_google_pay_enabled();
+
+        if ( ! $apple_pay_enabled && ! $google_pay_enabled ) {
+            return;
+        }
+
+        // Wrapper starts hidden; JS shows it via .show() once CollectJS confirms
+        // at least one wallet button has rendered (fieldsAvailableCallback).
+        echo '<div class="nmi-wallet-express-wrap" style="display:none;">';
+
+        if ( $apple_pay_enabled ) {
+            // Only Safari on Apple devices supports Apple Pay — CollectJS handles hiding.
+            echo '<div id="nmi-apple-pay-express" class="nmi-wallet-button"></div>';
+        }
+
+        if ( $google_pay_enabled ) {
+            echo '<div id="nmi-google-pay-express" class="nmi-wallet-button"></div>';
+        }
+
+        echo '<p class="nmi-or-divider">' . esc_html__( '— or pay below —', 'gaincommerce-nmi-payment-gateway-for-woocommerce' ) . '</p>';
+        echo '</div>';
+    }
+
     public function init_blocks_support(): void
     {
         if (class_exists('Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType')) {
@@ -110,16 +168,11 @@ class Plugin
                 'woocommerce_blocks_payment_method_type_registration',
                 function ($payment_method_registry) {
                     $payment_method_registry->register(new NMI_Blocks_Payment_Method());
-
-                    // Register Apple Pay express payment method (blocks)
-                    if (Digital_Wallet_Settings::is_apple_pay_enabled()) {
-                        $payment_method_registry->register(new NMI_Apple_Pay_Blocks());
-                    }
-
-                    // Register Google Pay express payment method (blocks)
-                    if (Digital_Wallet_Settings::is_google_pay_enabled()) {
-                        $payment_method_registry->register(new NMI_Google_Pay_Blocks());
-                    }
+                    // Register Apple Pay and Google Pay as standalone express payment methods.
+                    // Plug-and-play: fully functional once merchant accounts are approved and
+                    // IDs are entered in WooCommerce > Payments > NMI > Digital Wallets.
+                    $payment_method_registry->register(new NMI_Apple_Pay_Blocks());
+                    $payment_method_registry->register(new NMI_Google_Pay_Blocks());
                 }
             );
         }
