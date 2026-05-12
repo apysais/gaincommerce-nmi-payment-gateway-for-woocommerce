@@ -101,8 +101,7 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
 
         // Google Pay: include if enabled (CollectJS handles availability internally)
         // Google Pay requires a secure context (HTTPS); skip silently on HTTP.
-        const googlePaySupported =
-            settings.google_pay_enabled === 'yes' && window.isSecureContext;
+        const googlePaySupported = settings.google_pay_enabled === 'yes';
 
         if (googlePaySupported) {
             const gpayConfig = {
@@ -679,7 +678,7 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
     // Both wallet types require HTTPS — guard with isSecureContext before any
     // browser API call so HTTP dev environments don't throw or crash React.
     let applePayAvailable = false;
-    if ( window.isSecureContext && settings.apple_pay_enabled === 'yes' && settings.apple_merchant_id ) {
+    if ( window.isSecureContext && settings.apple_pay_enabled === 'yes' ) {
         try {
             applePayAvailable =
                 typeof window.ApplePaySession !== 'undefined' &&
@@ -688,7 +687,7 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
             // InvalidAccessError on HTTP — treat as unsupported
         }
     }
-    const googlePayAvailable = settings.google_pay_enabled === 'yes' && window.isSecureContext;
+    const googlePayAvailable = settings.google_pay_enabled === 'yes';
     const showWallets = applePayAvailable || googlePayAvailable;
 
     return (

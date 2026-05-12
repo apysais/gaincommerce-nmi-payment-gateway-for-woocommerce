@@ -168,11 +168,12 @@ class Plugin
                 'woocommerce_blocks_payment_method_type_registration',
                 function ($payment_method_registry) {
                     $payment_method_registry->register(new NMI_Blocks_Payment_Method());
-                    // Register Apple Pay and Google Pay as standalone express payment methods.
-                    // Plug-and-play: fully functional once merchant accounts are approved and
-                    // IDs are entered in WooCommerce > Payments > NMI > Digital Wallets.
-                    $payment_method_registry->register(new NMI_Apple_Pay_Blocks());
-                    $payment_method_registry->register(new NMI_Google_Pay_Blocks());
+                    // Wallet buttons (Apple Pay / Google Pay) are rendered INSIDE the CC
+                    // payment form by checkout-blocks.js, not as separate express methods.
+                    // This avoids the CollectJS single-configure constraint: CollectJS can
+                    // only be configured once per page load, so all fields (CC + wallets)
+                    // must be declared in the single configure() call inside checkout-blocks.js
+                    // when the user selects the Credit Card payment option.
                 }
             );
         }

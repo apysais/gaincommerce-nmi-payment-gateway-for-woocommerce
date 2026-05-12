@@ -67,7 +67,10 @@ const ApplePayButton = ( { onClick, onClose } ) => {
             }
 
             CollectJS.configure( {
-                variant: 'inline',
+                variant:  'inline',
+                country:  settings.country   || 'US',
+                currency: settings.currency  || 'USD',
+                price:    settings.cart_total || '0.00',
                 fields: { applepay: apayConfig },
                 validationCallback: () => {},
                 fieldsAvailableCallback: () => {

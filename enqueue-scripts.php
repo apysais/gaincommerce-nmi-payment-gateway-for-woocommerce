@@ -81,5 +81,29 @@ add_filter('script_loader_tag', function($tag, $handle) {
 		'src="https://secure.nmi.com/token/Collect.js" data-tokenization-key="' . esc_attr($gateway_settings['public_key']) . '"',
 		$tag
 	);
+
+	// Apple Pay requires data-price, data-country, and data-currency on the
+	// script tag itself (not just inside CollectJS.configure) to build the
+	// PaymentRequest object. Add them whenever wallets are enabled on checkout.
+	$wallets_enabled = class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
+		&& ( \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_apple_pay_enabled()
+		  || \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_google_pay_enabled() );
+
+	if ( $wallets_enabled && function_exists('is_checkout') && is_checkout() ) {
+		$price    = ( function_exists('WC') && WC()->cart )
+			? number_format( (float) WC()->cart->get_total('edit'), 2, '.', '' )
+			: '0.00';
+		$currency = get_woocommerce_currency();
+		$country  = function_exists('WC') && WC()->countries
+			? WC()->countries->get_base_country()
+			: 'US';
+
+		$tag = str_replace(
+			'data-tokenization-key=',
+			'data-price="' . esc_attr($price) . '" data-currency="' . esc_attr($currency) . '" data-country="' . esc_attr($country) . '" data-tokenization-key=',
+			$tag
+		);
+	}
+
 	return $tag;
 }, 100, 2);

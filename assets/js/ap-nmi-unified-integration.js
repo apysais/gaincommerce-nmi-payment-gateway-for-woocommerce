@@ -220,10 +220,8 @@ jQuery(document).ready(function($) {
 
         // Google Pay: use the express container rendered above payment methods.
         // No merchant ID required during Google Pay merchant approval review.
-        // Google Pay requires a secure context (HTTPS); skip silently on HTTP.
         if (
             ap_nmi_params.google_pay_enabled === 'yes' &&
-            window.isSecureContext &&
             $('#nmi-google-pay-express').length > 0
         ) {
             walletFields.googlePay = {

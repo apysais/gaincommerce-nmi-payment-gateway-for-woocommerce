@@ -65,6 +65,9 @@ class NMI_Apple_Pay_Blocks extends AbstractPaymentMethodType
             'apple_merchant_id' => Digital_Wallet_Settings::get_apple_merchant_id(),
             'public_key'        => Digital_Wallet_Settings::get_public_key(),
             'supports'          => [ 'products' ],
+            'country'           => strtoupper( substr( get_option( 'woocommerce_default_country', 'US' ), 0, 2 ) ),
+            'currency'          => get_woocommerce_currency(),
+            'cart_total'        => WC()->cart ? number_format( (float) WC()->cart->get_total( 'edit' ), 2, '.', '' ) : '0.00',
         ];
     }
 }
