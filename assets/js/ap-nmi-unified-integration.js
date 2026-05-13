@@ -201,13 +201,6 @@ jQuery(document).ready(function($) {
         if ( applePayAvailable ) {
             var applePayConfig = {
                 selector: '#nmi-apple-pay-express',
-                style: {
-                    'button-style': 'black',
-                    'button-type':  'buy',
-                    'border-radius': '4px',
-                    width:  '100%',
-                    height: '44px',
-                },
             };
             if (ap_nmi_params.apple_merchant_id) {
                 applePayConfig.appleMerchantId = ap_nmi_params.apple_merchant_id;

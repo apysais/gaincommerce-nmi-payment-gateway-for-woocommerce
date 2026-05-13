@@ -2,6 +2,21 @@
  * Simple CSS for AP NMI Checkout Blocks Payment Form
  */
 
+/* Button container dimensions (CollectJS removed style config support) */
+#nmi-apple-pay-button-blocks {
+    width: 100%;
+    height: 44px;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+#nmi-google-pay-button-blocks {
+    width: 100%;
+    height: 44px;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
 .ap-nmi-payment-form {
     padding: 16px 0;
 }

@@ -65,13 +65,6 @@
                 applepay: {
                     selector: '#nmi-apple-pay-button',
                     type: 'buy',
-                    style: {
-                        'button-style': 'black',
-                        'button-type': 'buy',
-                        'border-radius': '4px',
-                        width: '100%',
-                        height: '44px',
-                    },
                 },
             },
             validationCallback: function () {},

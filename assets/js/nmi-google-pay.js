@@ -44,11 +44,9 @@
 
         var googlePayConfig = {
             selector: '#nmi-google-pay-button',
-            style: {
-                buttonType: 'buy',
-                buttonColor: 'black',
-                buttonLocale: params.locale || 'en',
-            },
+            buttonType: 'buy',
+            buttonColor: 'black',
+            buttonLocale: params.locale || 'en',
         };
 
         if (params.google_merchant_id) {

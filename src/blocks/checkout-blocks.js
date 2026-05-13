@@ -82,13 +82,6 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
         if (applePaySupported) {
             const apayConfig = {
                 selector: '#nmi-apple-pay-button-blocks',
-                style: {
-                    'button-style':  'black',
-                    'button-type':   'buy',
-                    'border-radius': '4px',
-                    width:  '100%',
-                    height: '44px',
-                },
             };
             if (settings.apple_merchant_id) {
                 apayConfig.appleMerchantId = settings.apple_merchant_id;
