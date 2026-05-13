@@ -84,7 +84,17 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                 selector: '#nmi-apple-pay-button-blocks',
             };
             walletFields.applepay = apayConfig;
-            console.log('AP NMI Blocks: Including Apple Pay field in CollectJS config');
+            console.log('AP NMI Blocks: Including Apple Pay field in CollectJS config', {
+                selector: apayConfig.selector,
+                selectorFound: !!document.getElementById('nmi-apple-pay-button-blocks'),
+                collectJSLoaded: typeof CollectJS !== 'undefined',
+                isSecureContext: window.isSecureContext,
+                applePaySessionAvailable: typeof window.ApplePaySession !== 'undefined',
+                applePayEnabled: settings.apple_pay_enabled,
+                country: settings.country,
+                currency: settings.currency,
+                price: settings.cart_total,
+            });
         } else if (settings.apple_pay_enabled === 'yes') {
             console.log('AP NMI Blocks: Apple Pay not supported in this browser — field skipped');
         }

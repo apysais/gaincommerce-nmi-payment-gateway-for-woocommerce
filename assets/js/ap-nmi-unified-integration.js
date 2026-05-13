@@ -203,7 +203,13 @@ jQuery(document).ready(function($) {
                 selector: '#nmi-apple-pay-express',
             };
             walletFields.applepay = applePayConfig;
-            console.log('NMI: Including Apple Pay express field in CollectJS config');
+            console.log('NMI: Including Apple Pay express field in CollectJS config', {
+                selector: applePayConfig.selector,
+                selectorFound: $('#nmi-apple-pay-express').length > 0,
+                collectJSLoaded: typeof CollectJS !== 'undefined',
+                isSecureContext: window.isSecureContext,
+                applePaySessionAvailable: typeof window.ApplePaySession !== 'undefined',
+            });
         } else if (ap_nmi_params.apple_pay_enabled === 'yes') {
             console.log('NMI: Apple Pay not supported in this browser — button hidden');
         }

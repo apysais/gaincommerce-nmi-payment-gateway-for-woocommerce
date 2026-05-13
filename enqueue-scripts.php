@@ -101,15 +101,6 @@ add_filter('script_loader_tag', function($tag, $handle) {
 
 		$extra_attrs = 'data-price="' . esc_attr($price) . '" data-currency="' . esc_attr($currency) . '" data-country="' . esc_attr($country) . '"';
 
-		// Apple Pay button styling via documented script tag data attributes.
-		if ( class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
-			&& \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_apple_pay_enabled() ) {
-			$extra_attrs .= ' data-field-apple-pay-type="buy"'
-				. ' data-field-apple-pay-style-button-style="black"'
-				. ' data-field-apple-pay-style-height="44px"'
-				. ' data-field-apple-pay-style-border-radius="4px"';
-		}
-
 		$tag = str_replace(
 			'data-tokenization-key=',
 			$extra_attrs . ' data-tokenization-key=',
