@@ -83,9 +83,6 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
             const apayConfig = {
                 selector: '#nmi-apple-pay-button-blocks',
             };
-            if (settings.apple_merchant_id) {
-                apayConfig.appleMerchantId = settings.apple_merchant_id;
-            }
             walletFields.applepay = apayConfig;
             console.log('AP NMI Blocks: Including Apple Pay field in CollectJS config');
         } else if (settings.apple_pay_enabled === 'yes') {

@@ -55,9 +55,6 @@ const ApplePayButton = ( { onClick, onClose } ) => {
             const apayConfig = {
                 selector: '#nmi-apple-pay-button-blocks',
             };
-            if ( settings.apple_merchant_id ) {
-                apayConfig.appleMerchantId = settings.apple_merchant_id;
-            }
 
             CollectJS.configure( {
                 variant:  'inline',

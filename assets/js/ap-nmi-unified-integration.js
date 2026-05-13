@@ -202,9 +202,6 @@ jQuery(document).ready(function($) {
             var applePayConfig = {
                 selector: '#nmi-apple-pay-express',
             };
-            if (ap_nmi_params.apple_merchant_id) {
-                applePayConfig.appleMerchantId = ap_nmi_params.apple_merchant_id;
-            }
             walletFields.applepay = applePayConfig;
             console.log('NMI: Including Apple Pay express field in CollectJS config');
         } else if (ap_nmi_params.apple_pay_enabled === 'yes') {

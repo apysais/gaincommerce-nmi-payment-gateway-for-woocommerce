@@ -82,10 +82,10 @@ add_filter('script_loader_tag', function($tag, $handle) {
 		$tag
 	);
 
-	// Apple Pay and Google Pay require data-price, data-country, data-currency,
-	// and data-apple-pay-merchant-id on the Collect.js script tag itself so that
-	// CollectJS can build the PaymentRequest and perform Apple merchant validation
-	// before CollectJS.configure() is called.
+	// Apple Pay and Google Pay require data-price, data-country, data-currency on
+	// the Collect.js script tag so CollectJS can build the PaymentRequest.
+	// Apple Pay button style is also set here via data-field-apple-pay-style-* attrs
+	// (per NMI CollectJS docs — style cannot be set in CollectJS.configure() fields).
 	$wallets_enabled = class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
 		&& ( \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_apple_pay_enabled()
 		  || \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_google_pay_enabled() );
@@ -101,14 +101,13 @@ add_filter('script_loader_tag', function($tag, $handle) {
 
 		$extra_attrs = 'data-price="' . esc_attr($price) . '" data-currency="' . esc_attr($currency) . '" data-country="' . esc_attr($country) . '"';
 
-		// Apple Pay needs the merchant ID on the script tag for CollectJS to perform
-		// the onvalidatemerchant handshake with Apple's servers at page load time.
+		// Apple Pay button styling via documented script tag data attributes.
 		if ( class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
 			&& \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_apple_pay_enabled() ) {
-			$apple_merchant_id = \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::get_apple_merchant_id();
-			if ( ! empty( $apple_merchant_id ) ) {
-				$extra_attrs .= ' data-apple-pay-merchant-id="' . esc_attr( $apple_merchant_id ) . '"';
-			}
+			$extra_attrs .= ' data-field-apple-pay-type="buy"'
+				. ' data-field-apple-pay-style-button-style="black"'
+				. ' data-field-apple-pay-style-height="44px"'
+				. ' data-field-apple-pay-style-border-radius="4px"';
 		}
 
 		$tag = str_replace(
