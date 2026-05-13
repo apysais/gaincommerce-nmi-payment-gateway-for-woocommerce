@@ -228,7 +228,27 @@ jQuery(document).ready(function($) {
             console.log('NMI: Including Google Pay express field in CollectJS config');
         }
 
-        CollectJS.configure({
+        var collectJsCcFields = {
+            ccnumber: {
+                selector: "#ap-nmi-card-number",
+                title: "Card Number",
+                placeholder: "0000 0000 0000 0000",
+            },
+            ccexp: {
+                selector: "#ap-nmi-expiry-date",
+                title: "Card Expiration",
+                placeholder: "MM/YY",
+            },
+            cvv: {
+                display: "show",
+                selector: "#ap-nmi-card-cvv",
+                title: "CVV Code",
+                placeholder: "123",
+            }
+        };
+
+        function doCollectJSConfigure(fields) {
+            CollectJS.configure({
             paymentSelector: '#place_order, .wc-block-components-checkout-place-order-button',
             variant: "inline",
             country:  ap_nmi_params.country  || 'US',
@@ -250,24 +270,7 @@ jQuery(document).ready(function($) {
                 color: "black",
                 "border-color": "#4681f4",
             },
-            fields: Object.assign({
-                ccnumber: {
-                    selector: "#ap-nmi-card-number",
-                    title: "Card Number",
-                    placeholder: "0000 0000 0000 0000",
-                },
-                ccexp: {
-                    selector: "#ap-nmi-expiry-date",
-                    title: "Card Expiration",
-                    placeholder: "MM/YY",
-                },
-                cvv: {
-                    display: "show",
-                    selector: "#ap-nmi-card-cvv",
-                    title: "CVV Code",
-                    placeholder: "123",
-                }
-            }, walletFields),
+            fields: Object.assign({}, collectJsCcFields, fields),
             timeoutDuration: 10000,
             timeoutCallback: function () {
                 console.log("The tokenization didn't respond in the expected timeframe.");
@@ -316,7 +319,26 @@ jQuery(document).ready(function($) {
             validationCallback: function(field, status, message) {
                 nmiHandleValidation(field, status, message);
             }
-        });
+            });
+        }
+
+        // Try configuring with wallet fields first; fall back to CC-only if
+        // CollectJS throws "Could not create PaymentRequestAbstraction" (happens
+        // when the merchant domain is not yet verified with Apple/Google or the
+        // device cannot create a PaymentRequest for another reason).
+        try {
+            doCollectJSConfigure(walletFields);
+        } catch (e) {
+            if ( Object.keys(walletFields).length > 0 &&
+                 e.message && e.message.indexOf('PaymentRequestAbstraction') !== -1 ) {
+                console.warn('NMI: Wallet PaymentRequest init failed (' + e.message + '). Retrying without wallet fields.');
+                $('.nmi-wallet-express-wrap').hide();
+                walletFields = {};
+                doCollectJSConfigure({});
+            } else {
+                throw e;
+            }
+        }
 
         // Mark as configured
         window.nmiCollectJSConfigured = true;

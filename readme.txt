@@ -3,7 +3,7 @@ Contributors: allan.casilum, gaincommerce
 Tags: nmi, woocommerce, payment gateway, credit card, pci
 Requires at least: 6.8
 Tested up to: 6.9
-Stable tag: 1.14.2
+Stable tag: 1.14.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Requires Plugins: woocommerce
@@ -123,7 +123,7 @@ Visit <a href="https://www.gaincommerce.com/support" target="_blank">gaincommerc
 
 
 == Changelog ==
-= 1.14.2 =
+= 1.14.3 =
 * Support NMI Digital wallet payment, google and apple pay.
 
 = 1.13.1 =

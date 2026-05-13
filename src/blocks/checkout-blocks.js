@@ -109,7 +109,12 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
             console.log('AP NMI Blocks: Including Google Pay field in CollectJS config');
         }
 
-        CollectJS.configure({
+        const ccFields = {
+            ccnumber: { selector: "#ap-nmi-card-number", title: "Card Number", placeholder: "0000 0000 0000 0000" },
+            ccexp: { selector: "#ap-nmi-expiry-date", title: "Card Expiration", placeholder: "MM/YY" },
+            cvv: { display: "show", selector: "#ap-nmi-card-cvv", title: "CVV", placeholder: "123" }
+        };
+        const baseConfig = {
             variant: "inline",
             country:  settings.country  || 'US',
             currency: settings.currency || 'USD',
@@ -117,12 +122,12 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
             validCss: { color: "black", "border-color": "#2ecc71" },
             placeholderCss: { color: "darkgray", "background-color": "#ffffff" },
             focusCss: { color: "black", "border-color": "#4681f4" },
-            fields: Object.assign({
-                ccnumber: { selector: "#ap-nmi-card-number", title: "Card Number", placeholder: "0000 0000 0000 0000" },
-                ccexp: { selector: "#ap-nmi-expiry-date", title: "Card Expiration", placeholder: "MM/YY" },
-                cvv: { display: "show", selector: "#ap-nmi-card-cvv", title: "CVV", placeholder: "123" }
-            }, walletFields),
-            validationCallback: (field, status, message) => {
+        };
+        const runConfigure = ( fields ) => {
+            CollectJS.configure( {
+                ...baseConfig,
+                fields,
+                validationCallback: (field, status, message) => {
                 console.log('AP NMI Blocks: Validation:', field, status, message);
                 setFieldValidity(prev => ({ ...prev, [field.field || field]: status }));
             },
@@ -222,7 +227,26 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                     promiseRef.current = null; // Clear the ref after handling
                 }
             }
-        });
+            } );
+        };
+
+        // Try configuring with wallet fields; fall back to CC-only if the wallet
+        // Payment Request can't be created (e.g. missing domain verification).
+        try {
+            runConfigure( Object.assign( {}, ccFields, walletFields ) );
+        } catch ( e ) {
+            if ( Object.keys( walletFields ).length > 0 &&
+                 e.message && e.message.indexOf( 'PaymentRequestAbstraction' ) !== -1 ) {
+                console.warn( 'AP NMI Blocks: Wallet PaymentRequest init failed, retrying CC-only:', e.message );
+                const apBtn = document.getElementById( 'nmi-apple-pay-button-blocks' );
+                if ( apBtn && apBtn.closest( '.nmi-apple-pay-wrap' ) ) apBtn.closest( '.nmi-apple-pay-wrap' ).style.display = 'none';
+                const gpBtn = document.getElementById( 'nmi-google-pay-button-blocks' );
+                if ( gpBtn && gpBtn.closest( '.nmi-google-pay-wrap' ) ) gpBtn.closest( '.nmi-google-pay-wrap' ).style.display = 'none';
+                runConfigure( ccFields );
+            } else {
+                throw e;
+            }
+        }
     }, []); // Empty dependency array ensures this runs only once
 
     // Register payment setup handler
