@@ -82,9 +82,10 @@ add_filter('script_loader_tag', function($tag, $handle) {
 		$tag
 	);
 
-	// Apple Pay requires data-price, data-country, and data-currency on the
-	// script tag itself (not just inside CollectJS.configure) to build the
-	// PaymentRequest object. Add them whenever wallets are enabled on checkout.
+	// Apple Pay and Google Pay require data-price, data-country, data-currency,
+	// and data-apple-pay-merchant-id on the Collect.js script tag itself so that
+	// CollectJS can build the PaymentRequest and perform Apple merchant validation
+	// before CollectJS.configure() is called.
 	$wallets_enabled = class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
 		&& ( \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_apple_pay_enabled()
 		  || \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_google_pay_enabled() );
@@ -98,9 +99,21 @@ add_filter('script_loader_tag', function($tag, $handle) {
 			? WC()->countries->get_base_country()
 			: 'US';
 
+		$extra_attrs = 'data-price="' . esc_attr($price) . '" data-currency="' . esc_attr($currency) . '" data-country="' . esc_attr($country) . '"';
+
+		// Apple Pay needs the merchant ID on the script tag for CollectJS to perform
+		// the onvalidatemerchant handshake with Apple's servers at page load time.
+		if ( class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
+			&& \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_apple_pay_enabled() ) {
+			$apple_merchant_id = \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::get_apple_merchant_id();
+			if ( ! empty( $apple_merchant_id ) ) {
+				$extra_attrs .= ' data-apple-pay-merchant-id="' . esc_attr( $apple_merchant_id ) . '"';
+			}
+		}
+
 		$tag = str_replace(
 			'data-tokenization-key=',
-			'data-price="' . esc_attr($price) . '" data-currency="' . esc_attr($currency) . '" data-country="' . esc_attr($country) . '" data-tokenization-key=',
+			$extra_attrs . ' data-tokenization-key=',
 			$tag
 		);
 	}
