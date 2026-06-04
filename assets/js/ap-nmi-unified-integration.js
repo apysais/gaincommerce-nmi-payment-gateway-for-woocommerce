@@ -325,16 +325,31 @@ jQuery(document).ready(function($) {
             });
         }
 
-        // Try configuring with wallet fields first; fall back to CC-only if
-        // CollectJS throws "Could not create PaymentRequestAbstraction" (happens
-        // when the merchant domain is not yet verified with Apple/Google or the
-        // device cannot create a PaymentRequest for another reason).
+        // CollectJS throws "Could not create PaymentRequestAbstraction" *asynchronously*
+        // (inside a Promise) when the Apple Pay merchant session fails — e.g. NMI account
+        // not yet activated for Apple Pay, or domain validation handshake rejected.
+        // A synchronous try-catch won't catch it; we need an unhandledrejection listener.
+        if ( Object.keys(walletFields).length > 0 ) {
+            var nmiAsyncWalletErrHandler = function(event) {
+                var msg = event.reason && (event.reason.message || String(event.reason));
+                if ( msg && msg.indexOf('PaymentRequestAbstraction') !== -1 ) {
+                    console.warn('NMI: Apple Pay merchant session failed (async). ' +
+                        'Verify NMI merchant account has Apple Pay activated. Hiding button.');
+                    event.preventDefault();
+                    $('.nmi-wallet-express-wrap').hide();
+                    window.removeEventListener('unhandledrejection', nmiAsyncWalletErrHandler);
+                }
+            };
+            window.addEventListener('unhandledrejection', nmiAsyncWalletErrHandler);
+        }
+
+        // Also guard the synchronous path (some environments throw sync).
         try {
             doCollectJSConfigure(walletFields);
         } catch (e) {
             if ( Object.keys(walletFields).length > 0 &&
                  e.message && e.message.indexOf('PaymentRequestAbstraction') !== -1 ) {
-                console.warn('NMI: Wallet PaymentRequest init failed (' + e.message + '). Retrying without wallet fields.');
+                console.warn('NMI: Wallet PaymentRequest init failed (sync). Retrying CC-only.');
                 $('.nmi-wallet-express-wrap').hide();
                 walletFields = {};
                 doCollectJSConfigure({});

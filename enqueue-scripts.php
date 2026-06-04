@@ -110,3 +110,15 @@ add_filter('script_loader_tag', function($tag, $handle) {
 
 	return $tag;
 }, 100, 2);
+
+// On checkout pages, grant the Payment Request API (used by Apple Pay / Google Pay)
+// to CollectJS iframes loaded from collectcheckout.com.
+// Without this, Safari blocks the payment feature inside the iframe and Apple Pay
+// silently fails with "Feature policy 'Payment' check failed".
+add_action('send_headers', function() {
+	if ( ! function_exists('is_checkout') || ! is_checkout() ) {
+		return;
+	}
+	// Allow Payment Request API for self (the checkout page) and CollectJS's iframe origin.
+	header('Permissions-Policy: payment=(self "https://collectcheckout.com")');
+});

@@ -237,14 +237,32 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
             } );
         };
 
-        // Try configuring with wallet fields; fall back to CC-only if the wallet
-        // Payment Request can't be created (e.g. missing domain verification).
+        // CollectJS throws "Could not create PaymentRequestAbstraction" *asynchronously*
+        // (inside a Promise) when the Apple Pay merchant session fails — e.g. NMI account
+        // not yet activated for Apple Pay, or domain validation handshake rejected.
+        // A synchronous try-catch won't catch it; we need an unhandledrejection listener.
+        if ( Object.keys( walletFields ).length > 0 ) {
+            const nmiAsyncWalletErrHandler = ( event ) => {
+                const msg = event.reason && ( event.reason.message || String( event.reason ) );
+                if ( msg && msg.indexOf( 'PaymentRequestAbstraction' ) !== -1 ) {
+                    console.warn( 'AP NMI Blocks: Apple Pay merchant session failed (async). ' +
+                        'Verify NMI merchant account has Apple Pay activated. Hiding button.' );
+                    event.preventDefault();
+                    const apWrap = document.querySelector( '.nmi-apple-pay-wrap' );
+                    if ( apWrap ) apWrap.style.display = 'none';
+                    window.removeEventListener( 'unhandledrejection', nmiAsyncWalletErrHandler );
+                }
+            };
+            window.addEventListener( 'unhandledrejection', nmiAsyncWalletErrHandler );
+        }
+
+        // Also guard the synchronous path (some environments throw sync).
         try {
             runConfigure( Object.assign( {}, ccFields, walletFields ) );
         } catch ( e ) {
             if ( Object.keys( walletFields ).length > 0 &&
                  e.message && e.message.indexOf( 'PaymentRequestAbstraction' ) !== -1 ) {
-                console.warn( 'AP NMI Blocks: Wallet PaymentRequest init failed, retrying CC-only:', e.message );
+                console.warn( 'AP NMI Blocks: Wallet PaymentRequest init failed (sync), retrying CC-only:', e.message );
                 const apBtn = document.getElementById( 'nmi-apple-pay-button-blocks' );
                 if ( apBtn && apBtn.closest( '.nmi-apple-pay-wrap' ) ) apBtn.closest( '.nmi-apple-pay-wrap' ).style.display = 'none';
                 const gpBtn = document.getElementById( 'nmi-google-pay-button-blocks' );
