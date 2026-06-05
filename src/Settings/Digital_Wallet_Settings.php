@@ -53,7 +53,7 @@ class Digital_Wallet_Settings
             'default'     => 'no',
             'description' => __(
                 'Show an Apple Pay button on the checkout page. '
-                . 'Requires HTTPS, an Apple Merchant ID, and your NMI account enabled for Apple Pay. '
+                . 'Requires HTTPS and your domain added to the NMI Merchant Portal Apple Pay settings. '
                 . 'Only visible in Safari on Apple devices.',
                 'gaincommerce-nmi-payment-gateway-for-woocommerce'
             ),
@@ -61,12 +61,12 @@ class Digital_Wallet_Settings
         ];
 
         $fields['apple_merchant_id'] = [
-            'title'       => __( 'Apple Merchant ID', 'gaincommerce-nmi-payment-gateway-for-woocommerce' ),
+            'title'       => __( 'Apple Merchant ID (Optional)', 'gaincommerce-nmi-payment-gateway-for-woocommerce' ),
             'type'        => 'text',
             'description' => __(
-                'Your Apple Merchant ID from the Apple Developer account (e.g. <code>merchant.com.yoursite</code>). '
-                . 'You must also host the domain-association file at '
-                . '<code>/.well-known/apple-developer-merchantid-domain-association</code>.',
+                'Optional. Your Apple Merchant ID (e.g. <code>merchant.com.yoursite</code>). '
+                . 'NMI handles the Apple Pay merchant session automatically via Collect.js — '
+                . 'this field is not required for Apple Pay to work.',
                 'gaincommerce-nmi-payment-gateway-for-woocommerce'
             ),
             'default'     => '',
