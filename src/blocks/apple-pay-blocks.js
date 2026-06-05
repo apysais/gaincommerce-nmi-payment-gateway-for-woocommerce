@@ -14,14 +14,28 @@
  * button still renders when the browser supports Apple Pay.
  */
 
-import { createElement, useEffect } from '@wordpress/element';
+import { createElement, useEffect, useRef } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import { registerExpressPaymentMethod } from '@woocommerce/blocks-registry';
 import { getSetting } from '@woocommerce/settings';
 
 const settings = getSetting( 'gaincommerce_nmi_apple_pay_express_data', {} );
 
+// Module-level singleton — WooCommerce Blocks may render express payment methods
+// in multiple page slots (express area + payment step), producing duplicate IDs
+// that CollectJS rejects. Only the first mounted instance renders the button
+// div and configures CollectJS.
+let _applePayPrimaryMounted = false;
+
 const ApplePayButton = ( { onClick, onClose } ) => {
+    const isPrimary = useRef( null );
+    if ( isPrimary.current === null ) {
+        isPrimary.current = ! _applePayPrimaryMounted;
+        if ( isPrimary.current ) {
+            _applePayPrimaryMounted = true;
+        }
+    }
+
     useEffect( () => {
         // Register our onClick handler so the CollectJS callback (wherever it
         // fires — CC form or this component) can hand off the token correctly.
@@ -48,7 +62,7 @@ const ApplePayButton = ( { onClick, onClose } ) => {
             console.log( 'NMI Apple Pay Blocks: canMakePayments() unavailable:', e.message );
         }
 
-        if ( appleSupported && typeof CollectJS !== 'undefined' && ! window.nmiCollectJSBlocksConfigured ) {
+        if ( isPrimary.current && appleSupported && typeof CollectJS !== 'undefined' && ! window.nmiCollectJSBlocksConfigured ) {
             console.log( 'NMI Apple Pay Blocks: CC form not active, configuring CollectJS for Apple Pay only.' );
             window.nmiCollectJSBlocksConfigured = true;
 
@@ -79,13 +93,21 @@ const ApplePayButton = ( { onClick, onClose } ) => {
         }
 
         return () => {
+            if ( isPrimary.current ) {
+                _applePayPrimaryMounted = false;
+            }
             if ( window.__nmiWalletCallbacks ) {
                 delete window.__nmiWalletCallbacks.applepay;
             }
         };
     }, [ onClick ] );
 
-    // The container div is targeted by CollectJS
+    // Only the primary instance renders the button div.
+    // Secondary instances return null to prevent duplicate-ID errors.
+    if ( ! isPrimary.current ) {
+        return null;
+    }
+
     return createElement(
         'div',
         { className: 'nmi-apple-pay-blocks-wrap', style: { width: '100%', marginBottom: '8px' } },

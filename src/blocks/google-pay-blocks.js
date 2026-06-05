@@ -14,14 +14,28 @@
  * button still renders.
  */
 
-import { createElement, useEffect } from '@wordpress/element';
+import { createElement, useEffect, useRef } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import { registerExpressPaymentMethod } from '@woocommerce/blocks-registry';
 import { getSetting } from '@woocommerce/settings';
 
 const settings = getSetting( 'gaincommerce_nmi_google_pay_express_data', {} );
 
+// Module-level singleton — WooCommerce Blocks may render express payment methods
+// in multiple page slots (express area + payment step), producing duplicate IDs
+// that CollectJS rejects: "You may only mount 1 Google Pay button".
+// Only the first mounted instance renders the button div and configures CollectJS.
+let _googlePayPrimaryMounted = false;
+
 const GooglePayButton = ( { onClick, onClose } ) => {
+    const isPrimary = useRef( null );
+    if ( isPrimary.current === null ) {
+        isPrimary.current = ! _googlePayPrimaryMounted;
+        if ( isPrimary.current ) {
+            _googlePayPrimaryMounted = true;
+        }
+    }
+
     useEffect( () => {
         // Register our onClick handler so the CollectJS callback (wherever it
         // fires — CC form or this component) can hand off the token correctly.
@@ -34,10 +48,9 @@ const GooglePayButton = ( { onClick, onClose } ) => {
             } );
         };
 
-        // If CollectJS has NOT been configured yet (CC form not mounted), configure
-        // it here with only the googlepay field so the button appears.
-        // Google Pay requires HTTPS; skip silently on HTTP.
-        if ( typeof CollectJS !== 'undefined' && ! window.nmiCollectJSBlocksConfigured && window.isSecureContext ) {
+        // Only the primary instance configures CollectJS (and only when the
+        // CC form hasn't already done so). Google Pay requires HTTPS.
+        if ( isPrimary.current && typeof CollectJS !== 'undefined' && ! window.nmiCollectJSBlocksConfigured && window.isSecureContext ) {
             console.log( 'NMI Google Pay Blocks: CC form not active, configuring CollectJS for Google Pay only.' );
             window.nmiCollectJSBlocksConfigured = true;
 
@@ -73,13 +86,21 @@ const GooglePayButton = ( { onClick, onClose } ) => {
         }
 
         return () => {
+            if ( isPrimary.current ) {
+                _googlePayPrimaryMounted = false;
+            }
             if ( window.__nmiWalletCallbacks ) {
                 delete window.__nmiWalletCallbacks.googlePay;
             }
         };
     }, [ onClick ] );
 
-    // The container div is targeted by CollectJS
+    // Only the primary instance renders the button div.
+    // Secondary instances return null to prevent duplicate-ID errors.
+    if ( ! isPrimary.current ) {
+        return null;
+    }
+
     return createElement(
         'div',
         { className: 'nmi-google-pay-blocks-wrap', style: { width: '100%', marginBottom: '8px' } },
