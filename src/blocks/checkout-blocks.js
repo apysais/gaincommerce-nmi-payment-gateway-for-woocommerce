@@ -47,6 +47,35 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
         useSavedCardRef.current = useSavedCard;
     }, [useSavedCard]);
 
+    // Log configuration to debug panel when component mounts
+    useEffect(() => {
+        if (typeof window.NMI_Debug !== 'undefined') {
+            console.log('NMI Blocks Configuration:', {
+                public_key_present: !!(settings.public_key && settings.public_key.length > 0),
+                public_key_prefix: settings.public_key ? settings.public_key.substring(0, 10) + '...' : 'none',
+                apple_pay_enabled: settings.apple_pay_enabled,
+                google_pay_enabled: settings.google_pay_enabled,
+                apple_merchant_id: settings.apple_merchant_id || 'not set',
+                google_merchant_id: settings.google_merchant_id || 'not set',
+                country: settings.country,
+                currency: settings.currency,
+                cart_total: settings.cart_total,
+                is_blocks_checkout: true
+            });
+            
+            // Add to debug panel
+            window.NMI_Debug.addSystemInfo('Checkout Type', 'WooCommerce Blocks');
+            window.NMI_Debug.addSystemInfo('Apple Pay Enabled (Settings)', settings.apple_pay_enabled);
+            window.NMI_Debug.addSystemInfo('Google Pay Enabled (Settings)', settings.google_pay_enabled);
+            window.NMI_Debug.addSystemInfo('Apple Merchant ID', settings.apple_merchant_id || 'not set');
+            window.NMI_Debug.addSystemInfo('Google Merchant ID', settings.google_merchant_id || 'not set');
+            window.NMI_Debug.addSystemInfo('Cart Total', settings.currency + ' ' + settings.cart_total);
+            window.NMI_Debug.addSystemInfo('Country', settings.country);
+            window.NMI_Debug.addSystemInfo('Public Key Present', !!(settings.public_key && settings.public_key.length > 0));
+            window.NMI_Debug.addSystemInfo('CollectJS Loaded', typeof CollectJS !== 'undefined');
+        }
+    }, []); // Empty dependency array - run once on mount
+
     // Initialize CollectJS and set up the callback just once
     useEffect(() => {
         if (typeof CollectJS === 'undefined') {
@@ -70,12 +99,24 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
         let applePaySupported = false;
         if ( settings.apple_pay_enabled === 'yes' && window.isSecureContext ) {
             try {
-                applePaySupported =
-                    typeof window.ApplePaySession !== 'undefined' &&
-                    window.ApplePaySession.canMakePayments();
+                if (typeof window.ApplePaySession === 'undefined') {
+                    console.log('AP NMI Blocks: ApplePaySession is not available - not an Apple device or Safari browser');
+                } else if (typeof window.ApplePaySession.canMakePayments !== 'function') {
+                    console.log('AP NMI Blocks: ApplePaySession.canMakePayments() is not a function');
+                } else {
+                    applePaySupported = window.ApplePaySession.canMakePayments();
+                    console.log('AP NMI Blocks: ApplePaySession.canMakePayments() returned:', applePaySupported);
+                }
             } catch ( e ) {
                 // Throws InvalidAccessError on insecure (HTTP) pages — treat as unsupported.
-                console.log( 'AP NMI Blocks: Apple Pay canMakePayments() unavailable:', e.message );
+                console.error( 'AP NMI Blocks: Apple Pay canMakePayments() error:', e.message, e );
+            }
+        } else {
+            if (settings.apple_pay_enabled !== 'yes') {
+                console.log('AP NMI Blocks: Apple Pay is disabled in settings');
+            }
+            if (!window.isSecureContext) {
+                console.log('AP NMI Blocks: Not a secure context (HTTPS required for Apple Pay)');
             }
         }
 
@@ -734,6 +775,49 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
 
     return (
         <div className="ap-nmi-payment-form-blocks">
+            {/* NMI Debug Panel for Apple Pay/Google Pay Debugging */}
+            <div className="nmi-debug-panel">
+                <div className="nmi-debug-panel-header">
+                    <div>
+                        <h3 className="nmi-debug-panel-title">🐛 NMI Payment Debug Console</h3>
+                        <p className="nmi-debug-panel-subtitle">Real-time debugging for Apple Pay & Google Pay</p>
+                    </div>
+                    <div className="nmi-debug-panel-actions">
+                        <button
+                            type="button"
+                            id="nmi-debug-clear"
+                            className="nmi-debug-btn"
+                            onClick={() => window.NMI_Debug && window.NMI_Debug.clear()}
+                        >
+                            Clear Logs
+                        </button>
+                        <button
+                            type="button"
+                            id="nmi-debug-copy"
+                            className="nmi-debug-btn"
+                            onClick={() => window.NMI_Debug && window.NMI_Debug.copyLogs()}
+                        >
+                            Copy All
+                        </button>
+                    </div>
+                </div>
+
+                <div className="nmi-debug-section">
+                    <h4 className="nmi-debug-section-title">📱 System Information</h4>
+                    <div id="nmi-debug-system-info" className="nmi-debug-system-info">
+                        <div className="nmi-debug-loading">Loading system information</div>
+                    </div>
+                </div>
+
+                <div className="nmi-debug-section">
+                    <h4 className="nmi-debug-section-title">📝 Console Logs (NMI-related only)</h4>
+                    <div id="nmi-debug-logs" className="nmi-debug-logs-container">
+                        <div className="nmi-debug-no-logs">Waiting for logs...</div>
+                    </div>
+                </div>
+            </div>
+            {/* End NMI Debug Panel */}
+
             {/* Digital Wallet Buttons — shown above CC form when enabled and supported */}
             {showWallets && (
                 <div className="nmi-digital-wallets-wrap" style={{ marginBottom: '16px' }}>

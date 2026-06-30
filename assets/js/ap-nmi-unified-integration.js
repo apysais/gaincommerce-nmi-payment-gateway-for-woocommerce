@@ -15,6 +15,32 @@ jQuery(document).ready(function($) {
 
     console.log('Legacy checkout detected - initializing CollectJS integration');
 
+    // Log NMI configuration for debugging (especially useful for Apple Pay/Google Pay issues)
+    if (typeof window.NMI_Debug !== 'undefined') {
+        console.log('NMI Configuration:', {
+            public_key_present: !!(ap_nmi_params.public_key && ap_nmi_params.public_key.length > 0),
+            public_key_prefix: ap_nmi_params.public_key ? ap_nmi_params.public_key.substring(0, 10) + '...' : 'none',
+            apple_pay_enabled: ap_nmi_params.apple_pay_enabled,
+            google_pay_enabled: ap_nmi_params.google_pay_enabled,
+            apple_merchant_id: ap_nmi_params.apple_merchant_id || 'not set',
+            google_merchant_id: ap_nmi_params.google_merchant_id || 'not set',
+            country: ap_nmi_params.country,
+            currency: ap_nmi_params.currency,
+            cart_total: ap_nmi_params.cart_total,
+            is_checkout_page: ap_nmi_params.is_checkout_page
+        });
+        
+        // Add to debug panel
+        window.NMI_Debug.addSystemInfo('Apple Pay Enabled (Settings)', ap_nmi_params.apple_pay_enabled);
+        window.NMI_Debug.addSystemInfo('Google Pay Enabled (Settings)', ap_nmi_params.google_pay_enabled);
+        window.NMI_Debug.addSystemInfo('Apple Merchant ID', ap_nmi_params.apple_merchant_id || 'not set');
+        window.NMI_Debug.addSystemInfo('Google Merchant ID', ap_nmi_params.google_merchant_id || 'not set');
+        window.NMI_Debug.addSystemInfo('Cart Total', ap_nmi_params.currency + ' ' + ap_nmi_params.cart_total);
+        window.NMI_Debug.addSystemInfo('Country', ap_nmi_params.country);
+        window.NMI_Debug.addSystemInfo('Public Key Present', !!(ap_nmi_params.public_key && ap_nmi_params.public_key.length > 0));
+        window.NMI_Debug.addSystemInfo('CollectJS Loaded', typeof CollectJS !== 'undefined');
+    }
+
     // Track if CollectJS has been configured to prevent duplicate initialization
     window.nmiCollectJSConfigured = false;
 
@@ -140,14 +166,31 @@ jQuery(document).ready(function($) {
      */
     function nmiCheckWalletButtons(walletFields) {
         if (!walletFields || Object.keys(walletFields).length === 0) {
+            console.log('NMI: No wallet fields configured to check');
             return false;
         }
         var rendered = false;
         Object.keys(walletFields).forEach(function(type) {
             var sel = walletFields[type].selector;
-            if ($(sel).children().length > 0) {
+            var $container = $(sel);
+            var childrenCount = $container.children().length;
+            
+            console.log('NMI: Checking wallet button for', type, '— selector:', sel, 'children:', childrenCount);
+            
+            if (childrenCount > 0) {
                 rendered = true;
                 console.log('NMI: Wallet button rendered for', type, '— showing express wrapper.');
+                
+                // Log details about what was rendered
+                $container.children().each(function(idx, child) {
+                    console.log('NMI: Button child element', idx, ':', {
+                        tagName: child.tagName,
+                        className: child.className,
+                        id: child.id
+                    });
+                });
+            } else {
+                console.log('NMI: Wallet button NOT yet rendered for', type);
             }
         });
         if (rendered) {
@@ -193,9 +236,23 @@ jQuery(document).ready(function($) {
         var applePayAvailable = false;
         if ( ap_nmi_params.apple_pay_enabled === 'yes' && $('#nmi-apple-pay-express').length > 0 ) {
             try {
-                applePayAvailable = typeof window.ApplePaySession !== 'undefined' && window.ApplePaySession.canMakePayments();
+                if (typeof window.ApplePaySession === 'undefined') {
+                    console.log('NMI: ApplePaySession is not available - not an Apple device or Safari browser');
+                } else if (typeof window.ApplePaySession.canMakePayments !== 'function') {
+                    console.log('NMI: ApplePaySession.canMakePayments() is not a function');
+                } else {
+                    applePayAvailable = window.ApplePaySession.canMakePayments();
+                    console.log('NMI: ApplePaySession.canMakePayments() returned:', applePayAvailable);
+                }
             } catch (e) {
-                console.log('NMI: ApplePaySession.canMakePayments() unavailable:', e.message);
+                console.error('NMI: ApplePaySession.canMakePayments() error:', e.message, e);
+            }
+        } else {
+            if (ap_nmi_params.apple_pay_enabled !== 'yes') {
+                console.log('NMI: Apple Pay is disabled in settings');
+            }
+            if ($('#nmi-apple-pay-express').length === 0) {
+                console.log('NMI: Apple Pay express container (#nmi-apple-pay-express) not found in DOM');
             }
         }
         if ( applePayAvailable ) {
@@ -366,6 +423,7 @@ jQuery(document).ready(function($) {
         // and independently from the CC fieldsAvailableCallback).
         // Checks every 300 ms for up to 15 seconds.
         if (Object.keys(walletFields).length > 0) {
+            console.log('NMI: Starting wallet button polling for:', Object.keys(walletFields).join(', '));
             var walletPollCount = 0;
             var walletPollMax   = 50; // 50 × 300 ms = 15 s
             var walletPollId    = setInterval(function () {
@@ -374,11 +432,21 @@ jQuery(document).ready(function($) {
                 if (found || walletPollCount >= walletPollMax) {
                     clearInterval(walletPollId);
                     if (!found) {
-                        console.log('NMI: Wallet buttons did not render after 15 s. ' +
-                            'Ensure the NMI tokenization key is authorized for Google Pay / Apple Pay.');
+                        console.error('NMI: Wallet buttons did not render after 15 seconds (' + walletPollCount + ' checks). Possible reasons:');
+                        console.error('  - NMI tokenization key not authorized for Apple Pay / Google Pay');
+                        console.error('  - Browser/device does not support the wallet payment method');
+                        console.error('  - HTTPS required but not available');
+                        console.error('  - Apple Pay: Not on Safari or Apple device');
+                        console.error('  - Apple Pay: Merchant ID not configured or not approved by Apple');
+                        console.error('  - Google Pay: Merchant ID not configured or not approved by Google');
+                        console.error('Configured wallet fields:', walletFields);
+                    } else {
+                        console.log('NMI: Wallet button(s) successfully rendered after', walletPollCount, 'checks (~' + (walletPollCount * 0.3) + 's)');
                     }
                 }
             }, 300);
+        } else {
+            console.log('NMI: No wallet fields to poll - skipping wallet button check');
         }
     }
 

@@ -31,6 +31,35 @@ if (class_exists('GainCommerceNmiEnterprise\\User\\Meta_Save_Payment_Method_CC')
         <p><?php echo wp_kses_post( $test_mode_notes ); ?></p>
     <?php endif; ?>
 
+    <!-- NMI Debug Panel for Apple Pay/Google Pay Debugging -->
+    <div class="nmi-debug-panel">
+        <div class="nmi-debug-panel-header">
+            <div>
+                <h3 class="nmi-debug-panel-title">🐛 NMI Payment Debug Console</h3>
+                <p class="nmi-debug-panel-subtitle">Real-time debugging for Apple Pay & Google Pay</p>
+            </div>
+            <div class="nmi-debug-panel-actions">
+                <button type="button" id="nmi-debug-clear" class="nmi-debug-btn">Clear Logs</button>
+                <button type="button" id="nmi-debug-copy" class="nmi-debug-btn">Copy All</button>
+            </div>
+        </div>
+
+        <div class="nmi-debug-section">
+            <h4 class="nmi-debug-section-title">📱 System Information</h4>
+            <div id="nmi-debug-system-info" class="nmi-debug-system-info">
+                <div class="nmi-debug-loading">Loading system information</div>
+            </div>
+        </div>
+
+        <div class="nmi-debug-section">
+            <h4 class="nmi-debug-section-title">📝 Console Logs (NMI-related only)</h4>
+            <div id="nmi-debug-logs" class="nmi-debug-logs-container">
+                <div class="nmi-debug-no-logs">Waiting for logs...</div>
+            </div>
+        </div>
+    </div>
+    <!-- End NMI Debug Panel -->
+
     <fieldset id="wc-<?php echo esc_attr( $gateway_id ); ?>-payment-form" class="ap-nmi-payment-form loading">
 
     <?php
