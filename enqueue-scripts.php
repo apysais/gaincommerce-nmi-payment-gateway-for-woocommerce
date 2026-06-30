@@ -7,25 +7,25 @@ if ( ! defined( 'WPINC' ) ) {
 add_action('wp_enqueue_scripts', function(){
 	$gateway_settings = get_option(AP_NMI_WC_GATEWAY_SETTINGS_ID);
 
-	// Register and enqueue debug logger first (must load before all other NMI scripts)
+	// Register and enqueue payment monitor first (must load before all other NMI scripts)
 	// This intercepts console methods to capture logs for mobile debugging
 	if ( function_exists('is_checkout') && is_checkout() ) {
 		wp_register_script(
-			'nmi-debug-logger',
-			apnmi_get_plugin_dir_url() . 'assets/js/nmi-debug-logger.js',
+			'nmi-payment-monitor',
+			apnmi_get_plugin_dir_url() . 'assets/js/nmi-payment-monitor.js',
 			[],
 			AP_NMI_PAYMENT_GATEWAY_VERSION,
 			false // Load in head to intercept console before other scripts
 		);
-		wp_enqueue_script('nmi-debug-logger');
+		wp_enqueue_script('nmi-payment-monitor');
 
 		wp_register_style(
-			'nmi-debug-panel',
-			apnmi_get_plugin_dir_url() . 'assets/css/nmi-debug-panel.css',
+			'nmi-payment-monitor',
+			apnmi_get_plugin_dir_url() . 'assets/css/nmi-payment-monitor.css',
 			[],
 			AP_NMI_PAYMENT_GATEWAY_VERSION
 		);
-		wp_enqueue_style('nmi-debug-panel');
+		wp_enqueue_style('nmi-payment-monitor');
 	}
 
 	// Always use production CollectJS URL (tokenization library)
