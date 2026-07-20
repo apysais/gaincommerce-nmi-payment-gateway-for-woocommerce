@@ -183,6 +183,26 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                 if (typeof window.NMI_Debug !== 'undefined') {
                     window.NMI_Debug.addSystemInfo('Apple Pay Button Rendered', rendered ? 'YES' : 'NO — div empty after fieldsAvailableCallback');
                 }
+
+                // Diagnostic: if Apple Pay didn't render, check whether CollectJS even
+                // attempted a merchant-validation network round trip with Apple/NMI.
+                if (!rendered && typeof performance !== 'undefined' && performance.getEntriesByType) {
+                    const walletRequests = performance.getEntriesByType('resource')
+                        .filter(entry => /apple|merchant|session/i.test(entry.name))
+                        .map(entry => ({
+                            name: entry.name,
+                            initiatorType: entry.initiatorType,
+                            transferSize: entry.transferSize,
+                            duration: Math.round(entry.duration),
+                        }));
+                    console.log('AP NMI Blocks: Apple Pay wallet-related network requests found:', walletRequests.length, walletRequests);
+                    if (typeof window.NMI_Debug !== 'undefined') {
+                        window.NMI_Debug.addSystemInfo(
+                            'Apple Pay Network Requests',
+                            walletRequests.length ? JSON.stringify(walletRequests) : 'NONE — CollectJS never attempted merchant validation'
+                        );
+                    }
+                }
             },
             timeoutDuration: 10000,
             timeoutCallback: () => {

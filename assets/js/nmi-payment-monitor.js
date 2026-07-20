@@ -11,24 +11,7 @@
     window.NMI_Debug = {
         logs: [],
         systemInfo: {},
-        maxLogs: 200, // Limit to prevent memory issues
-        
-        // Keywords to filter console logs
-        filterKeywords: [
-            'NMI',
-            'nmi',
-            'Apple Pay',
-            'apple pay',
-            'applepay',
-            'ApplePay',
-            'Google Pay',
-            'google pay',
-            'googlepay',
-            'GooglePay',
-            'CollectJS',
-            'collectjs',
-            'Collect.js'
-        ],
+        maxLogs: 500, // Limit to prevent memory issues
 
         /**
          * Add a log entry to the debug panel
@@ -51,16 +34,6 @@
 
             // Update UI if panel exists
             this.updateUI();
-        },
-
-        /**
-         * Check if a message should be logged based on filter keywords
-         */
-        shouldLog: function(message) {
-            var messageStr = String(message).toLowerCase();
-            return this.filterKeywords.some(function(keyword) {
-                return messageStr.indexOf(keyword.toLowerCase()) !== -1;
-            });
         },
 
         /**
@@ -103,7 +76,7 @@
             // Update logs
             if (logContainer) {
                 var logsHtml = '';
-                var logs = this.logs.slice(-50); // Show last 50 logs
+                var logs = this.logs.slice(-150); // Show last 150 logs
 
                 logs.forEach(function(log) {
                     var logClass = 'nmi-debug-log-' + log.type;
@@ -224,56 +197,49 @@
         log: console.log,
         warn: console.warn,
         error: console.error,
-        info: console.info
+        info: console.info,
+        debug: console.debug
     };
 
-    // Override console.log
-    console.log = function() {
-        var args = Array.prototype.slice.call(arguments);
-        var message = args.join(' ');
-        
-        if (window.NMI_Debug.shouldLog(message)) {
-            window.NMI_Debug.addLog('log', message, args.length > 1 ? args : null);
-        }
-        
-        originalConsole.log.apply(console, arguments);
-    };
+    // Capture every console call unfiltered — there's no way to open Safari's
+    // real dev console on iPhone here, so this panel has to be the console.
+    ['log', 'warn', 'error', 'info', 'debug'].forEach(function(type) {
+        console[type] = function() {
+            var args = Array.prototype.slice.call(arguments);
+            var message = args.join(' ');
 
-    // Override console.warn
-    console.warn = function() {
-        var args = Array.prototype.slice.call(arguments);
-        var message = args.join(' ');
-        
-        if (window.NMI_Debug.shouldLog(message)) {
-            window.NMI_Debug.addLog('warn', message, args.length > 1 ? args : null);
-        }
-        
-        originalConsole.warn.apply(console, arguments);
-    };
+            window.NMI_Debug.addLog(type, message, args.length > 1 ? args : null);
 
-    // Override console.error
-    console.error = function() {
-        var args = Array.prototype.slice.call(arguments);
-        var message = args.join(' ');
-        
-        if (window.NMI_Debug.shouldLog(message)) {
-            window.NMI_Debug.addLog('error', message, args.length > 1 ? args : null);
-        }
-        
-        originalConsole.error.apply(console, arguments);
-    };
+            originalConsole[type].apply(console, arguments);
+        };
+    });
 
-    // Override console.info
-    console.info = function() {
-        var args = Array.prototype.slice.call(arguments);
-        var message = args.join(' ');
-        
-        if (window.NMI_Debug.shouldLog(message)) {
-            window.NMI_Debug.addLog('info', message, args.length > 1 ? args : null);
+    // Capture uncaught JS errors
+    window.addEventListener('error', function(event) {
+        if (event.target && event.target !== window) {
+            // Resource load failure (script/img/iframe/link), not a JS error.
+            var target = event.target;
+            var src = target.src || target.href || '(unknown)';
+            window.NMI_Debug.addLog('error', 'Resource failed to load: ' + src, {
+                tagName: target.tagName
+            });
+            return;
         }
-        
-        originalConsole.info.apply(console, arguments);
-    };
+        window.NMI_Debug.addLog('error', 'Uncaught error: ' + event.message, {
+            source: event.filename,
+            line: event.lineno,
+            col: event.colno,
+            stack: event.error && event.error.stack
+        });
+    }, true); // capture phase so resource errors (which don't bubble) are caught too
+
+    // Capture unhandled promise rejections
+    window.addEventListener('unhandledrejection', function(event) {
+        var reason = event.reason;
+        window.NMI_Debug.addLog('error', 'Unhandled promise rejection: ' + (reason && reason.message ? reason.message : String(reason)), {
+            stack: reason && reason.stack
+        });
+    });
 
     /**
      * Collect environment information

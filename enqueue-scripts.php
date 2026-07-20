@@ -105,8 +105,6 @@ add_filter('script_loader_tag', function($tag, $handle) {
 
 	// Apple Pay and Google Pay require data-price, data-country, data-currency on
 	// the Collect.js script tag so CollectJS can build the PaymentRequest.
-	// Apple Pay button style is also set here via data-field-apple-pay-style-* attrs
-	// (per NMI CollectJS docs — style cannot be set in CollectJS.configure() fields).
 	$wallets_enabled = class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
 		&& ( \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_apple_pay_enabled()
 		  || \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_google_pay_enabled() );
@@ -133,13 +131,17 @@ add_filter('script_loader_tag', function($tag, $handle) {
 }, 100, 2);
 
 // On checkout pages, grant the Payment Request API (used by Apple Pay / Google Pay)
-// to CollectJS iframes loaded from collectcheckout.com.
+// to any CollectJS iframe, regardless of origin.
 // Without this, Safari blocks the payment feature inside the iframe and Apple Pay
 // silently fails with "Feature policy 'Payment' check failed".
+// NOTE: previously scoped to "https://collectcheckout.com", a domain that doesn't
+// appear anywhere else in the NMI integration and was never verified against the
+// actual CollectJS iframe origin — widened to * until the real origin is confirmed
+// (see doc/07-20-2026-2149-v2-fix-apple-pay.md).
 add_action('send_headers', function() {
 	if ( ! function_exists('is_checkout') || ! is_checkout() ) {
 		return;
 	}
-	// Allow Payment Request API for self (the checkout page) and CollectJS's iframe origin.
-	header('Permissions-Policy: payment=(self "https://collectcheckout.com")');
+	// Allow Payment Request API for self (the checkout page) and any CollectJS iframe.
+	header('Permissions-Policy: payment=(self *)');
 });
