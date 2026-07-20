@@ -86,6 +86,9 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
 
         console.log('AP NMI Blocks: Initializing CollectJS...');
 
+        // Mark as configured so apple-pay-blocks.js fallback skips its own configure call.
+        window.nmiCollectJSBlocksConfigured = true;
+
         // Build wallet fields to include in the same configure call as CC fields.
         // CollectJS can only be configured once, so all fields must be declared together.
         // Guard each wallet type: only add it when the browser actually supports it,
@@ -170,6 +173,24 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
             validCss: { color: "black", "border-color": "#2ecc71" },
             placeholderCss: { color: "darkgray", "background-color": "#ffffff" },
             focusCss: { color: "black", "border-color": "#4681f4" },
+            fieldsAvailableCallback: () => {
+                const apBtn = document.getElementById('nmi-apple-pay-button-blocks');
+                const rendered = apBtn ? apBtn.children.length > 0 : false;
+                console.log('AP NMI Blocks: fieldsAvailableCallback — Apple Pay button rendered:', rendered, {
+                    childCount: apBtn ? apBtn.children.length : 0,
+                    hasIframe: apBtn ? !!apBtn.querySelector('iframe') : false,
+                });
+                if (typeof window.NMI_Debug !== 'undefined') {
+                    window.NMI_Debug.addSystemInfo('Apple Pay Button Rendered', rendered ? 'YES' : 'NO — div empty after fieldsAvailableCallback');
+                }
+            },
+            timeoutDuration: 10000,
+            timeoutCallback: () => {
+                console.error('AP NMI Blocks: CollectJS timed out — Apple Pay button failed to load. Verify domain is registered in NMI Apple Pay settings.');
+                if (typeof window.NMI_Debug !== 'undefined') {
+                    window.NMI_Debug.addSystemInfo('CollectJS Timeout', 'FAILED — check NMI domain registration');
+                }
+            },
         };
         const runConfigure = ( fields ) => {
             CollectJS.configure( {

@@ -62,35 +62,41 @@ const ApplePayButton = ( { onClick, onClose } ) => {
             console.log( 'NMI Apple Pay Blocks: canMakePayments() unavailable:', e.message );
         }
 
-        if ( isPrimary.current && appleSupported && typeof CollectJS !== 'undefined' && ! window.nmiCollectJSBlocksConfigured ) {
-            console.log( 'NMI Apple Pay Blocks: CC form not active, configuring CollectJS for Apple Pay only.' );
-            window.nmiCollectJSBlocksConfigured = true;
+        // Defer by one tick so checkout-blocks.js useEffect (which sets
+        // window.nmiCollectJSBlocksConfigured) always runs first when NMI is
+        // the active gateway. If the CC form is not mounted, the flag is never
+        // set and this fallback correctly configures CollectJS for Apple Pay only.
+        setTimeout( () => {
+            if ( isPrimary.current && appleSupported && typeof CollectJS !== 'undefined' && ! window.nmiCollectJSBlocksConfigured ) {
+                console.log( 'NMI Apple Pay Blocks: CC form not active, configuring CollectJS for Apple Pay only.' );
+                window.nmiCollectJSBlocksConfigured = true;
 
-            const apayConfig = {
-                selector: '#nmi-apple-pay-button-blocks',
-            };
+                const apayConfig = {
+                    selector: '#nmi-apple-pay-button-blocks',
+                };
 
-            CollectJS.configure( {
-                variant:  'inline',
-                country:  settings.country   || 'US',
-                currency: settings.currency  || 'USD',
-                price:    settings.cart_total || '0.00',
-                fields: { applepay: apayConfig },
-                validationCallback: () => {},
-                fieldsAvailableCallback: () => {
-                    console.log( 'NMI Apple Pay Blocks: Button rendered.' );
-                },
-                timeoutDuration: 10000,
-                timeoutCallback: () => {
-                    console.error( 'NMI Apple Pay Blocks: CollectJS timeout.' );
-                },
-                callback: ( response ) => {
-                    if ( response.token && window.__nmiWalletCallbacks && window.__nmiWalletCallbacks.applepay ) {
-                        window.__nmiWalletCallbacks.applepay( response.token );
-                    }
-                },
-            } );
-        }
+                CollectJS.configure( {
+                    variant:  'inline',
+                    country:  settings.country   || 'US',
+                    currency: settings.currency  || 'USD',
+                    price:    settings.cart_total || '0.00',
+                    fields: { applepay: apayConfig },
+                    validationCallback: () => {},
+                    fieldsAvailableCallback: () => {
+                        console.log( 'NMI Apple Pay Blocks: Button rendered.' );
+                    },
+                    timeoutDuration: 10000,
+                    timeoutCallback: () => {
+                        console.error( 'NMI Apple Pay Blocks: CollectJS timeout.' );
+                    },
+                    callback: ( response ) => {
+                        if ( response.token && window.__nmiWalletCallbacks && window.__nmiWalletCallbacks.applepay ) {
+                            window.__nmiWalletCallbacks.applepay( response.token );
+                        }
+                    },
+                } );
+            }
+        }, 0 );
 
         return () => {
             if ( isPrimary.current ) {
