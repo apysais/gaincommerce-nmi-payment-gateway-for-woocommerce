@@ -105,9 +105,11 @@ add_filter('script_loader_tag', function($tag, $handle) {
 
 	// Apple Pay and Google Pay require data-price, data-country, data-currency on
 	// the Collect.js script tag so CollectJS can build the PaymentRequest.
-	$wallets_enabled = class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
-		&& ( \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_apple_pay_enabled()
-		  || \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_google_pay_enabled() );
+	$apple_pay_enabled = class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
+		&& \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_apple_pay_enabled();
+	$wallets_enabled = $apple_pay_enabled
+		|| ( class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
+		  && \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_google_pay_enabled() );
 
 	if ( $wallets_enabled && function_exists('is_checkout') && is_checkout() ) {
 		$price    = ( function_exists('WC') && WC()->cart )
@@ -119,6 +121,18 @@ add_filter('script_loader_tag', function($tag, $handle) {
 			: 'US';
 
 		$extra_attrs = 'data-price="' . esc_attr($price) . '" data-currency="' . esc_attr($currency) . '" data-country="' . esc_attr($country) . '"';
+
+		// Per NMI's docs (docs.nmi.com/docs/digital-wallet-setup), Apple Pay is
+		// configured entirely via data-field-apple-pay-* attributes on this script
+		// tag — there is no CollectJS.configure({fields:{applepay:{...}}}) for it.
+		// Without data-field-apple-pay-selector, CollectJS never learns where to
+		// render the button, so it silently renders nothing (no error, no timeout).
+		if ( $apple_pay_enabled ) {
+			$apple_pay_selector = has_block('woocommerce/checkout')
+				? '#nmi-apple-pay-button-blocks'
+				: '#nmi-apple-pay-express';
+			$extra_attrs .= ' data-field-apple-pay-selector="' . esc_attr($apple_pay_selector) . '"';
+		}
 
 		$tag = str_replace(
 			'data-tokenization-key=',
