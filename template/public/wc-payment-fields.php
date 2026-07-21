@@ -7,6 +7,7 @@ $is_on_test_mode    = isset($args['is_on_test_mode']) ? $args['is_on_test_mode']
 $test_mode_notes    = isset($args['test_mode_notes']) ? $args['test_mode_notes'] : '';
 $use_collect_js     = isset($args['use_collect_js']) ? $args['use_collect_js'] : false;
 $display_accepted_cards = isset($args['display_accepted_cards']) ? $args['display_accepted_cards'] : false;
+$debug_console_enabled = isset($args['debug_console_enabled']) ? $args['debug_console_enabled'] : false;
 
 // Check for saved payment method (premium feature)
 $has_saved_card = false;
@@ -31,6 +32,7 @@ if (class_exists('GainCommerceNmiEnterprise\\User\\Meta_Save_Payment_Method_CC')
         <p><?php echo wp_kses_post( $test_mode_notes ); ?></p>
     <?php endif; ?>
 
+    <?php if ($debug_console_enabled) : ?>
     <!-- NMI Debug Panel for Apple Pay/Google Pay Debugging -->
     <div class="nmi-debug-panel">
         <div class="nmi-debug-panel-header">
@@ -59,6 +61,7 @@ if (class_exists('GainCommerceNmiEnterprise\\User\\Meta_Save_Payment_Method_CC')
         </div>
     </div>
     <!-- End NMI Debug Panel -->
+    <?php endif; ?>
 
     <fieldset id="wc-<?php echo esc_attr( $gateway_id ); ?>-payment-form" class="ap-nmi-payment-form loading">
 

@@ -134,6 +134,7 @@ class NMI_Blocks_Payment_Method extends AbstractPaymentMethodType {
             'country'            => strtoupper( substr( get_option( 'woocommerce_default_country', 'US' ), 0, 2 ) ),
             'currency'           => get_woocommerce_currency(),
             'cart_total'         => WC()->cart ? number_format( (float) WC()->cart->get_total( 'edit' ), 2, '.', '' ) : '0.00',
+            'debug_console_enabled' => $gateway->get_option('enable_debug_console') === 'yes',
         ];
     }
 

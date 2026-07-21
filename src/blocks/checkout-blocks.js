@@ -817,6 +817,7 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
     return (
         <div className="ap-nmi-payment-form-blocks">
             {/* NMI Debug Panel for Apple Pay/Google Pay Debugging */}
+            {settings.debug_console_enabled && (
             <div className="nmi-debug-panel">
                 <div className="nmi-debug-panel-header">
                     <div>
@@ -857,6 +858,7 @@ const CreditCardForm = ({ billing, eventRegistration, emitResponse }) => {
                     </div>
                 </div>
             </div>
+            )}
             {/* End NMI Debug Panel */}
 
             {/* Digital Wallet Buttons — shown above CC form when enabled and supported */}

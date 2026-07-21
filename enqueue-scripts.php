@@ -8,8 +8,10 @@ add_action('wp_enqueue_scripts', function(){
 	$gateway_settings = get_option(AP_NMI_WC_GATEWAY_SETTINGS_ID);
 
 	// Register and enqueue payment monitor first (must load before all other NMI scripts)
-	// This intercepts console methods to capture logs for mobile debugging
-	if ( function_exists('is_checkout') && is_checkout() ) {
+	// This intercepts console methods to capture logs for mobile debugging.
+	// Off by default — only load when explicitly enabled in gateway settings.
+	if ( function_exists('is_checkout') && is_checkout()
+		&& ($gateway_settings['enable_debug_console'] ?? 'no') === 'yes' ) {
 		wp_register_script(
 			'nmi-payment-monitor',
 			apnmi_get_plugin_dir_url() . 'assets/js/nmi-payment-monitor.js',

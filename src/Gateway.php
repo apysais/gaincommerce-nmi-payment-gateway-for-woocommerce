@@ -322,6 +322,17 @@ class Gateway extends WC_Payment_Gateway
                 'default' => 'no',
                 'desc_tip' => false,
             ],
+            'enable_debug_console' => [
+                'title' => __('Debug Console', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                'label' => __('Enable NMI Payment Debug Console', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
+                'type' => 'checkbox',
+                'description' => __(
+                    'Shows an on-page debug console on checkout with real-time console logs and system info — useful for diagnosing Apple Pay/Google Pay on devices without dev tools access. Leave disabled for real customers.',
+                    'gaincommerce-nmi-payment-gateway-for-woocommerce'
+                ),
+                'default' => 'no',
+                'desc_tip' => false,
+            ],
         ];
     }
 
@@ -351,7 +362,8 @@ class Gateway extends WC_Payment_Gateway
             'is_on_test_mode'   => $this->testmode,
             'use_collect_js'    => $this->use_collect_js,
             'display_accepted_cards' => $this->display_card_type_icons(),
-            'save_payment_enabled' => $save_payment_enabled
+            'save_payment_enabled' => $save_payment_enabled,
+            'debug_console_enabled' => $this->get_option('enable_debug_console') === 'yes'
         ];
 
         wc_get_template(
