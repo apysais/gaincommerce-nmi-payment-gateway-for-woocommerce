@@ -1,64 +1,50 @@
 === Gain Commerce NMI Payment Gateway for WooCommerce ===
 Contributors: allan.casilum, gaincommerce
-Tags: nmi, woocommerce, payment gateway, credit card, pci
+Tags: nmi, woocommerce, payment gateway, credit card, checkout
 Requires at least: 6.8
-Tested up to: 6.9
-Stable tag: 1.14.7
+Tested up to: 7.0.1
+Stable tag: 1.14.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Requires Plugins: woocommerce
 
-PCI-compliant payment gateway integration between NMI and WooCommerce. Seamlessly accept e-commerce credit card payments through WooCommerce stores.
+PCI-compliant NMI payment gateway integration for WooCommerce. Accept credit cards, Apple Pay, and Google Pay with full HPOS support.
 
 == Description ==
 
-The <strong>Gain Commerce NMI Payment Gateway for WooCommerce</strong> is the premier free NMI plugin for secure, flexible credit card processing on your WooCommerce store. Developed for WooCommerce Blocks and HPOS compatibility. This plugin offers easy integration into WooCommerce to create a seamless customer checkout experience. Achieve top-tier security with full PCI-DSS Compliance through the NMI payment gateway, utilizing Collect.js for safe data tokenization that keeps sensitive card data off your server. 
+The <strong>Gain Commerce NMI Payment Gateway for WooCommerce</strong> is a secure, flexible payment processing plugin for your WooCommerce store. Built with full support for WooCommerce Checkout Blocks and High-Performance Order Storage (HPOS), this plugin provides a seamless checkout experience. 
 
-Merchants gain essential features such as the Authorize Now and Capture Later flexibility, easy refunds, and voids, all managed from the full WooCommerce dashboard. Merchants can control which card types they accept, including Apple Pay, Google Pay, and PayPal. The plugin also supports advanced features such as Dynamic Descriptors and records AVS/CVV response codes. Streamline your transaction management with a reliable, feature-rich gateway plugin from Gain Commerce.
+Achieve top-tier security with full PCI-DSS Compliance through the NMI payment gateway, utilizing Collect.js for safe data tokenization that keeps sensitive card data off your server.
 
-<strong>Free Plugin Version Includes</strong>
-=
-* <strong>Easy Integration</strong> into WooCommerce for a seamless customer checkout process. 
-* <strong>Secure Payment Processing</strong> with full PCI-DSS Compliance via the NMI payment gateway.
-* <strong>Credit Card Processing</strong> managed entirely by NMI with data tokenization through <a href="https://docs.nmi.com/docs/collectjs/" target="_blank">Collect.js</a>  
-* <strong>Customer Vault</strong> for secure, remote customer card data storage.
-* <strong>Manage Transactions</strong> from the WooCommerce dashboard.
-* <strong>Customizable Settings</strong> in the WooCommerce admin.
-* <strong>Control Card Types</strong> to accept or restrict all major credit card brands, as needed.
-* <strong>Receipts</strong> from the WooCommerce dashboard through NMI.
-* <strong>Refunds/Voids</strong> from the WooCommerce dashboard.
-* <strong>AVS/CVV Response Codes</strong> recorded in order notes.
-* <strong>Dynamic Descriptors</strong> variable descriptors for customer statements.
-* <strong>Digital Wallets</strong> supported, including Apple Pay, Google Pay, and PayPal.
-* <strong>Authorize Now and Capture Later</strong> flexibility for transactions occurring at a later date.
-* <strong>Shipping Info</strong> sent to NMI transaction ledger.
-* <strong>AVS/CVV Response Codes</strong> recorded in order notes.
-* <strong>Logging</strong> to detect and fix errors or issues.
+Merchants gain essential features like Authorize Now and Capture Later, easy refunds, and voids—all managed directly from your WooCommerce dashboard. Accept major credit cards, Apple Pay, Google Pay, and utilize Dynamic Descriptors and AVS/CVV response logging to protect your business.
 
-<strong>Premium Plugin Version Includes</strong>
-=
-* <strong>ACH Payments</strong> integrated electronic transfers through the ACH network.
-* <strong>Stored Payments</strong> for card or ACH payments in the PCI-compliant Customer Vault.
-* <strong>3D Secure 2 (3DS2)</strong> authentication to reduce fraud. PSD2/SCA Compliant.
-* <strong>WooCommerce Subscriptions</strong>compatible to create and manage recurring payments.
+### Free Plugin Features
+* <strong>Easy WooCommerce Integration:</strong> Seamless customer checkout experience.
+* <strong>PCI-DSS Compliant:</strong> Uses NMI <a href="https://docs.nmi.com/docs/collectjs/" target="_blank">Collect.js</a> for secure browser tokenization.
+* <strong>Digital Wallets:</strong> Accept Apple Pay and Google Pay during checkout.
+* <strong>Customer Vault:</strong> Secure remote storage for customer card data.
+* <strong>Dashboard Management:</strong> Authorize, Capture, Refund, and Void transactions inside WooCommerce.
+* <strong>Card Brand Control:</strong> Accept or restrict specific credit card brands.
+* <strong>Fraud Prevention:</strong> Record AVS/CVV response codes directly in order notes.
+* <strong>Dynamic Descriptors:</strong> Pass custom descriptors to customer credit card statements.
+* <strong>Order Ledger Data:</strong> Automatically send WooCommerce shipping info to the NMI ledger.
+* <strong>Developer Logging:</strong> Built-in debug logging to troubleshoot issues quickly.
 
-<strong>Important Requirements:</strong>
-=
-* Active NMI account
+### Premium Plugin Features
+* <strong>ACH Payments:</strong> Accept electronic check transfers through the ACH network.
+* <strong>Stored Payment Methods:</strong> Allow returning customers to select saved cards/ACH accounts from the Customer Vault.
+* <strong>3D Secure 2 (3DS2):</strong> Advanced fraud prevention; fully PSD2 / SCA compliant.
+* <strong>WooCommerce Subscriptions:</strong> Full compatibility for automatic recurring payments.
+
+== System Requirements ==
+* Active NMI payment gateway account
 * WooCommerce version 8.0 or higher.
 * WooCommerce HPOS (High-Performance Order Storage)
-* WordPress 6.8.*
-
-<strong>Compatibility:</strong>
-=
-* WooCommerce 8.0+ (HPOS only)
-* WooCommerce Subscription 8.6.0
-* WordPress 6.8.*
+* Valid SSL Certificate
 
 == Source Code ==
 The source code for the minified JS/CSS is available at: 
-<a href="https://github.com/apysais/gaincommerce-nmi-payment-gateway-for-woocommerce/" target="_blank">Gain Commerce NMI Payment Gateway for WooCommerce</a>
-
+<a href="https://github.com/apysais/gaincommerce-nmi-payment-gateway-for-woocommerce/" target="_blank">Gain Commerce NMI GitHub Repository</a>
 
 Build instructions:
 1. Clone the repository.
@@ -68,25 +54,13 @@ Build instructions:
 == External Services ==
 This plugin connects to the NMI payment gateway to process transactions.
 
-* Service: <a href="https://www.nmi.com/" target="_blank">NMI Payment Gateway</a>
-* Purpose: To process credit card payments securely.
-* Data Sent: Card details (via tokenization), order details.
-* <a href="https://www.nmi.com/legal/terms/" target="_blank">Terms of Service</a>
-* <a href="https://www.nmi.com/legal/privacy/" target="_blank">Privacy Policy</a>
+* <strong>Service:</strong> <a href="https://www.nmi.com/" target="_blank">NMI Payment Gateway</a>
+* <strong>Purpose:</strong> Process credit card payments securely.
+* <strong>Data Sent:</strong> Encrypted card tokens, order details, and shipping info.
+* <a href="https://www.nmi.com/legal/terms/" target="_blank">Terms of Service</a> | <a href="https://www.nmi.com/legal/privacy/" target="_blank">Privacy Policy</a>
 
-**When Data Is Sent:**  
-Data is transmitted only when a customer submits payment information during checkout.
-
-**Where Data Is Sent:**  
-All sensitive data is sent directly to NMI’s secure servers. Your website does not store or process raw payment data.
-
-The plugin loads the NMI Collect.js script for tokenization: 
-=
-* Script URL:</strong> <a href="https://docs.nmi.com/docs/collectjs" target="_blank">https://docs.nmi.com/docs/collectjs</a>
-* Collect.js is a PCI-compliant JavaScript library provided by NMI to tokenize payment data in the browser before it reaches your server.
-
-**Conditions:**  
-Data is encrypted and tokenized using Collect.js. Only a single-use token is returned to your site for transaction processing.
+**Tokenization via Collect.js:**
+The plugin loads NMI's browser script (`https://docs.nmi.com/docs/collectjs`) during checkout to tokenize payment details before data reaches your server.
 
 == Installation ==
 1. Upload the plugin files to the `/wp-content/plugins/gaincommerce-nmi-payment-gateway-for-woocommerce` directory, or install the plugin through the WordPress plugins screen directly.
@@ -94,25 +68,23 @@ Data is encrypted and tokenized using Collect.js. Only a single-use token is ret
 3. Configure the plugin settings in WooCommerce > Settings > Payments > Gain Commerce NMI Payment Gateway.
 
 == Frequently Asked Questions ==
+
 = Is this plugin PCI Compliant? =
-Yes. Utilizing NMI's Collect.js to tokenize payment data, sensitive information never touches merchant servers.
+Yes. Utilizing NMI's Collect.js to tokenize payment data, sensitive credit card information never touches your web server.
 
 = Does this plugin require WooCommerce? =
-Yes. WooCommerce 6.8 or higher must be installed and active.
+Yes. WooCommerce 8.0 or higher must be installed and active.
 
-= Does this plugin require a Network Merchants account? = 
-Yes. An active NMI payment gateway account is required.  Contact <a href="https://www.alliedpayments.com" target="_blank">Allied Payments</a>, our preferred provider, to set up NMI payment gateway accounts.
+= Does this plugin require an NMI account? = 
+Yes. An active NMI payment gateway account is required. Contact <a href="https://www.alliedpayments.com" target="_blank">Allied Payments</a>, our preferred provider, to set up your account.
 
-= Is an SSL required? = 
-Yes. A valid SSL certificate is required to protect customer credit card account information and to meet PCI-DSS compliance requirements. 
+= Is an SSL Certificate required? = 
+Yes. A valid SSL certificate is required to meet PCI-DSS compliance standards and secure user checkout.
 
- = What information is passed to NMI? =
-Payment account information is only transferred through tokenization to maintain absolute PCI Compliance. No sensitive payment information is sent over unsecured channels.
+= Does this plugin store customer credit card details? =
+No. Credit card numbers are tokenized by NMI and stored remotely in the NMI Customer Vault.
 
- = Does this plugin store customer information? =
-No. This plugin does not store any customer credit card numbers or personal customer information.
-
- = For additional integration information and support =
+= Where can I get support or integration help? =
 Visit <a href="https://www.gaincommerce.com/support" target="_blank">gaincommerce.com/support</a>.
 
 == Screenshots ==
@@ -121,13 +93,10 @@ Visit <a href="https://www.gaincommerce.com/support" target="_blank">gaincommerc
 3. WooCommerce Order Notes displaying AVS, CVV, Confirmation, and Error codes from NMI.
 4. Dynamic Descriptor settings in WooCommerce (when enabled in NMI)
 
-
 == Changelog ==
-= 1.14.7 =
-* PUT NOTES HERE
 
-= 1.14.5 =
-* Support NMI Digital wallet payment, google and apple pay.
+= 1.14.8 =
+* Support NMI Digital wallet payment, Google Pay and Apple Pay.
 
 = 1.13.1 =
 * Add WooCommerce Subscriptions support for automatic recurring payments. Requires WooCommerce Subscriptions plugin and Premium Add-on.
@@ -181,6 +150,3 @@ Visit <a href="https://www.gaincommerce.com/support" target="_blank">gaincommerc
 == Upgrade Notice ==
 = 1.0.0 =
 Initial release of Gain Commerce NMI Payment Gateway for WooCommerce plugin.
-
-= Additional Information Required =
-Visit our support page at <a href="https://www.gaincommerce.com/support" target="_blank">Gain Commerce</a>
