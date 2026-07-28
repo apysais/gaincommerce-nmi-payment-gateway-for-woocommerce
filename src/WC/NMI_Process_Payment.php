@@ -18,9 +18,20 @@ class NMI_Process_Payment
         $this->config = $config;
     }
 
+    /**
+     * @return array|null Failure response when no usable token arrived, else null.
+     */
     public function check_payment_token()
     {
         $config = $this->config;
+
+        // A saved card carries no Collect.js token by design — the enterprise plugin
+        // swaps in customer_vault_id and unsets payment_token further down the filter
+        // chain. Only a *new* card is required to have one.
+        if (!empty($config['use_save_payment_method'])) {
+            return null;
+        }
+
         if ($config['use_collect_js'] && empty($config['payment_token'])) {
             // get payment token from the form
             return [
@@ -28,6 +39,8 @@ class NMI_Process_Payment
                 'message' => __('Payment token is missing. Please try again.', 'gaincommerce-nmi-payment-gateway-for-woocommerce'),
             ];
         }
+
+        return null;
     }
    
     public function process_sale()
@@ -36,7 +49,13 @@ class NMI_Process_Payment
         $config = $this->config;
         $order  = $this->order;
 
-        $this->check_payment_token();
+        // Bail early on a missing token rather than letting the request fall through to
+        // the API's raw-card branch, which fails with the far less useful
+        // "Missing required field: ccnumber".
+        $token_error = $this->check_payment_token();
+        if (is_array($token_error)) {
+            return $token_error;
+        }
 
         $payment_token = $config['payment_token'];
 

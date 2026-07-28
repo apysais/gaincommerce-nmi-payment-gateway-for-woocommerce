@@ -26,9 +26,54 @@ class NMI_Blocks_Payment_Method extends AbstractPaymentMethodType {
         $asset_file = AP_NMI_PAYMENT_GATEWAY_PLUGIN_DIR . 'assets/js/build/checkout-blocks.asset.php';
 
         $asset = include $asset_file;
+
+        // Provides window.NMIWalletSupport, read at runtime by checkout-blocks.js.
+        // Normally registered by enqueue-scripts.php on wp_enqueue_scripts; register it
+        // here too in case the blocks registry resolves handles first. WordPress refuses
+        // to enqueue a script whose dependency is unregistered, which would silently
+        // drop the entire checkout bundle.
+        if (!wp_script_is('nmi-wallet-support', 'registered')) {
+            wp_register_script(
+                'nmi-wallet-support',
+                AP_NMI_PAYMENT_GATEWAY_PLUGIN_URL . 'assets/js/nmi-wallet-support.js',
+                [],
+                AP_NMI_PAYMENT_GATEWAY_VERSION,
+                true
+            );
+        }
+
+        // Same fallback for window.NMITrace. This one matters in the block editor,
+        // where get_payment_method_script_handles_for_admin() resolves these handles
+        // but wp_enqueue_scripts (which enqueue-scripts.php hangs off) never fires.
+        // The localize has to be repeated here: without apNmiTraceConfig the trace
+        // script loads but can never mirror to the WooCommerce log.
+        if (!wp_script_is('nmi-checkout-trace', 'registered')) {
+            wp_register_script(
+                'nmi-checkout-trace',
+                AP_NMI_PAYMENT_GATEWAY_PLUGIN_URL . 'assets/js/nmi-checkout-trace.js',
+                [],
+                AP_NMI_PAYMENT_GATEWAY_VERSION,
+                false
+            );
+            wp_localize_script(
+                'nmi-checkout-trace',
+                'apNmiTraceConfig',
+                [
+                    'enabled' => \APNMIPaymentGateway\Checkout_Trace::is_enabled(),
+                    'ajaxUrl' => admin_url('admin-ajax.php'),
+                    'nonce'   => wp_create_nonce('ap_nmi_nonce'),
+                    'action'  => \APNMIPaymentGateway\Checkout_Trace::AJAX_ACTION,
+                    'field'   => \APNMIPaymentGateway\Checkout_Trace::FIELD,
+                ]
+            );
+        }
+
         $dependencies = array_merge($asset['dependencies'], [
             'wc-blocks-registry',
-            'wc-settings'
+            'wc-settings',
+            'nmi-wallet-support',
+            // Provides window.NMITrace (console + WooCommerce log).
+            'nmi-checkout-trace'
         ]);
         $version = $asset['version'];
 

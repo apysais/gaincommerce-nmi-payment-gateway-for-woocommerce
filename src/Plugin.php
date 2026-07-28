@@ -56,6 +56,9 @@ class Plugin
         // Initialize digital wallet settings (injects fields into CC gateway admin)
         Digital_Wallet_Settings::init();
 
+        // Receiver for browser checkout trace entries, mirrored into the WC log.
+        \APNMIPaymentGateway\Checkout_Trace::init();
+
         // Initialize WooCommerce Blocks integration
         add_action('woocommerce_blocks_loaded', [$this, 'init_blocks_support']);
 
