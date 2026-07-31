@@ -44,7 +44,7 @@ Merchants gain essential features like Authorize Now and Capture Later, easy ref
 
 == Source Code ==
 The source code for the minified JS/CSS is available at: 
-<a href="https://github.com/apysais/gaincommerce-nmi-payment-gateway-for-woocommerce/" target="_blank">Gain Commerce NMI GitHub Repository</a>
+<a href="https://github.com/gaincommerce/gaincommerce-nmi-payment-gateway-for-woocommerce/" target="_blank">Gain Commerce NMI GitHub Repository</a>
 
 Build instructions:
 1. Clone the repository.
