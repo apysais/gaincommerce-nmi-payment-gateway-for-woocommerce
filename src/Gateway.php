@@ -481,9 +481,18 @@ class Gateway extends WC_Payment_Gateway
 
     public function process_payment( $order_id )
     {
+        // Opens the server half of the checkout trace. The browser sends its trace id
+        // along with the order, so these lines interleave with the browser's under the
+        // same id in WooCommerce > Status > Logs.
+        \APNMIPaymentGateway\Checkout_Trace::server('process_payment:start', [
+            'order_id' => $order_id,
+            'checkout' => $this->is_blocks_checkout() ? 'blocks' : 'legacy',
+        ]);
+
         $order = wc_get_order($order_id);
 
         if (!$order) {
+            \APNMIPaymentGateway\Checkout_Trace::server('process_payment:order_not_found', ['order_id' => $order_id], 'error');
             wc_add_notice(__('Order not found.', 'gaincommerce-nmi-payment-gateway-for-woocommerce'), 'error');
             return ['result' => 'fail'];
         }
@@ -527,6 +536,17 @@ class Gateway extends WC_Payment_Gateway
             $use_saved_payment_method = true;
         }
         
+        // The single most useful line in the whole trace: did a token actually arrive,
+        // and from which of the two possible request shapes?
+        \APNMIPaymentGateway\Checkout_Trace::server('process_payment:token', [
+            'has_token'    => !empty($payment_token),
+            'token_length' => strlen($payment_token),
+            'source'       => isset($_POST['payment_method_data']['payment_token'])
+                ? 'payment_method_data'
+                : (isset($_POST['payment_token']) ? 'post' : 'none'),
+            'use_saved'    => $use_saved_payment_method,
+        ]);
+
         $card_data = [];
         if (empty($payment_token)) {
             // Fallback for non-CollectJS or if token is missing
@@ -561,15 +581,16 @@ class Gateway extends WC_Payment_Gateway
             $gateway_config['save_payment_method'] = false;
         }
 
-        if (isset($_POST['save_payment_method']) && $_POST['use_save_payment_method'] == '1') {
-            $gateway_config['use_save_payment_method'] = true;
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification handled earlier in the method
-        } elseif (isset($_POST['payment_method_data']['use_save_payment_method']) && $_POST['payment_method_data']['use_save_payment_method'] == '1') {
-            // Block checkout save payment method
-            $gateway_config['use_save_payment_method'] = true;
-        } else {
-            $gateway_config['use_save_payment_method'] = false;
-        }
+        // NOTE: do not recompute 'use_save_payment_method' here. It is already set
+        // above from the derivation at the top of this method, which reads both
+        // request shapes. A second block used to overwrite it and guarded on
+        // isset($_POST['save_payment_method']) while reading
+        // $_POST['use_save_payment_method'] — two different keys. On legacy checkout
+        // 'save_payment_method' is never posted for a saved card (the template
+        // checkbox has no name attribute, and the hidden input is only appended on
+        // the new-card path), so the guard failed, the else branch forced false, and
+        // every legacy saved-card order fell through to the raw-card branch and
+        // failed with "Missing required field: ccnumber".
 
         // Extract 3DS data if premium plugin is active and 3DS is enabled
         $threeds_data = [];
@@ -714,6 +735,13 @@ class Gateway extends WC_Payment_Gateway
             ];
         }
 
+        \APNMIPaymentGateway\Checkout_Trace::server('process_payment:gateway_response', [
+            'success'        => !empty($response['success']),
+            'transaction_id' => $response['transaction_id'] ?? null,
+            'response_code'  => $response['response_code'] ?? null,
+            'message'        => $response['message'] ?? null,
+        ], !empty($response['success']) ? 'info' : 'error');
+
         if ($response['success']) {
 
             // Store transaction ID for later capture
@@ -826,6 +854,11 @@ class Gateway extends WC_Payment_Gateway
             WC()->cart->empty_cart();
 
             do_action('apnmi_after_payment_complete', $order, $response, $gateway_config);
+
+            \APNMIPaymentGateway\Checkout_Trace::server('process_payment:success', [
+                'order_id'       => $order->get_id(),
+                'transaction_id' => $response['transaction_id'] ?? null,
+            ]);
 
             return [
                 'result' => 'success',

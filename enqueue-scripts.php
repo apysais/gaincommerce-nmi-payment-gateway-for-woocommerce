@@ -30,6 +30,21 @@ add_action('wp_enqueue_scripts', function(){
 		wp_enqueue_style('nmi-payment-monitor');
 	}
 
+	// TEMPORARY DIAGNOSTIC: CollectJS postMessage tap, for tracking down tokenization
+	// stalls. Opt-in per request via ?nmi_trace=1 on the checkout URL. Must load in
+	// <head> ahead of Collect.js so it sees the field-mount messages too.
+	// Remove this block together with assets/js/nmi-collectjs-trace.js.
+	if ( ! empty($_GET['nmi_trace']) && function_exists('is_checkout') && is_checkout() ) {
+		wp_register_script(
+			'nmi-collectjs-trace',
+			apnmi_get_plugin_dir_url() . 'assets/js/nmi-collectjs-trace.js',
+			['nmi-checkout-trace'],
+			AP_NMI_PAYMENT_GATEWAY_VERSION,
+			false // <head>, before Collect.js
+		);
+		wp_enqueue_script('nmi-collectjs-trace');
+	}
+
 	// Always use production CollectJS URL (tokenization library)
 	// The API key determines which environment tokens are valid in
 	wp_register_script(
@@ -40,11 +55,44 @@ add_action('wp_enqueue_scripts', function(){
 		false
 	);
 	
+	// Correlated checkout tracing: console + WooCommerce log, shared by both checkouts.
+	// Registered unconditionally so window.NMITrace always exists; it only mirrors to
+	// the WC log when the gateway's "logging" setting is on. Loaded in <head> so it is
+	// available to every later script.
 	wp_register_script(
-		'ap-nmi-unified-integration', 
-		apnmi_get_plugin_dir_url() . 'assets/js/ap-nmi-unified-integration.js', 
-		['jquery', 'nmi-collectjs'], 
-		AP_NMI_PAYMENT_GATEWAY_VERSION, 
+		'nmi-checkout-trace',
+		apnmi_get_plugin_dir_url() . 'assets/js/nmi-checkout-trace.js',
+		[],
+		AP_NMI_PAYMENT_GATEWAY_VERSION,
+		false
+	);
+	wp_localize_script(
+		'nmi-checkout-trace',
+		'apNmiTraceConfig',
+		[
+			'enabled'  => \APNMIPaymentGateway\Checkout_Trace::is_enabled(),
+			'ajaxUrl'  => admin_url('admin-ajax.php'),
+			'nonce'    => wp_create_nonce('ap_nmi_nonce'),
+			'action'   => \APNMIPaymentGateway\Checkout_Trace::AJAX_ACTION,
+			'field'    => \APNMIPaymentGateway\Checkout_Trace::FIELD,
+		]
+	);
+	wp_enqueue_script('nmi-checkout-trace');
+
+	// Digital wallet precondition checks, shared by the legacy and blocks checkouts.
+	wp_register_script(
+		'nmi-wallet-support',
+		apnmi_get_plugin_dir_url() . 'assets/js/nmi-wallet-support.js',
+		[],
+		AP_NMI_PAYMENT_GATEWAY_VERSION,
+		true
+	);
+
+	wp_register_script(
+		'ap-nmi-unified-integration',
+		apnmi_get_plugin_dir_url() . 'assets/js/ap-nmi-unified-integration.js',
+		['jquery', 'nmi-collectjs', 'nmi-wallet-support', 'nmi-checkout-trace'],
+		AP_NMI_PAYMENT_GATEWAY_VERSION,
 		true
 	);
 
@@ -113,7 +161,13 @@ add_filter('script_loader_tag', function($tag, $handle) {
 		|| ( class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
 		  && \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_google_pay_enabled() );
 
-	if ( $wallets_enabled && function_exists('is_checkout') && is_checkout() ) {
+	// Both wallets require a secure context. Emitting the wallet attributes over plain
+	// HTTP makes CollectJS build wallet fields that can only fail: Google Pay's
+	// isReadyToPay throws DEVELOPER_ERROR, and ApplePayFieldFactory logs a domain error
+	// as soon as data-field-apple-pay-selector matches an element. Skipping the
+	// attributes leaves CollectJS on its unmatched default selector (#applepaybutton),
+	// where getApplePayErrors() returns early with no error at all.
+	if ( $wallets_enabled && function_exists('is_checkout') && is_checkout() && apnmi_is_secure_request() ) {
 		$price    = ( function_exists('WC') && WC()->cart )
 			? number_format( (float) WC()->cart->get_total('edit'), 2, '.', '' )
 			: '0.00';
@@ -124,11 +178,12 @@ add_filter('script_loader_tag', function($tag, $handle) {
 
 		$extra_attrs = 'data-price="' . esc_attr($price) . '" data-currency="' . esc_attr($currency) . '" data-country="' . esc_attr($country) . '"';
 
-		// Per NMI's docs (docs.nmi.com/docs/digital-wallet-setup), Apple Pay is
-		// configured entirely via data-field-apple-pay-* attributes on this script
-		// tag — there is no CollectJS.configure({fields:{applepay:{...}}}) for it.
-		// Without data-field-apple-pay-selector, CollectJS never learns where to
-		// render the button, so it silently renders nothing (no error, no timeout).
+		// Apple Pay's selector can come from either this data attribute or
+		// CollectJS.configure({fields:{applePay:{selector}}}) — Config.js reads the
+		// data attribute as the default and configure() overrides it. Note the key is
+		// camelCase `applePay`; the lowercase `applepay` this integration used to pass
+		// was silently ignored, which is why this attribute was added as a workaround.
+		// Both now point at the same selector, so they agree.
 		if ( $apple_pay_enabled ) {
 			$apple_pay_selector = has_block('woocommerce/checkout')
 				? '#nmi-apple-pay-button-blocks'
@@ -147,17 +202,24 @@ add_filter('script_loader_tag', function($tag, $handle) {
 }, 100, 2);
 
 // On checkout pages, grant the Payment Request API (used by Apple Pay / Google Pay)
-// to any CollectJS iframe, regardless of origin.
+// to the CollectJS wallet iframe.
 // Without this, Safari blocks the payment feature inside the iframe and Apple Pay
 // silently fails with "Feature policy 'Payment' check failed".
-// NOTE: previously scoped to "https://collectcheckout.com", a domain that doesn't
-// appear anywhere else in the NMI integration and was never verified against the
-// actual CollectJS iframe origin — widened to * until the real origin is confirmed
-// (see doc/07-20-2026-2149-v2-fix-apple-pay.md).
+//
+// The origin IS https://collectcheckout.com — confirmed in the Collect.js bundle:
+// URLParser.googlePayIFrameRootUrl and URLParser.applePayIFrameRootUrl both return
+// that host for every environment except NMI's own internal dev hosts. An earlier
+// note in this file claimed the domain was unverified and widened the allowlist to
+// `*`; that was wrong, and `*` inside a parenthesised allowlist is not valid
+// Permissions-Policy syntax anyway.
 add_action('send_headers', function() {
 	if ( ! function_exists('is_checkout') || ! is_checkout() ) {
 		return;
 	}
-	// Allow Payment Request API for self (the checkout page) and any CollectJS iframe.
-	header('Permissions-Policy: payment=(self *)');
+	// The Payment Request API is only available in a secure context, so there is
+	// nothing to grant over plain HTTP.
+	if ( ! apnmi_is_secure_request() ) {
+		return;
+	}
+	header('Permissions-Policy: payment=(self "https://collectcheckout.com")');
 });

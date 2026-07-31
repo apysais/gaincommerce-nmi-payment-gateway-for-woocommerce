@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gain Commerce NMI Payment Gateway for WooCommerce
  * Description: WooCommerce payment gateway using NMI. Compatible with WooCommerce 8+ (HPOS only) and WordPress 6.8.*
- * Version: 1.14.8
+ * Version: 1.15.1
  * Requires at least: 6.8
  * Tested up to: 6.9
  * Requires PHP: 7.4
@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('AP_NMI_PAYMENT_GATEWAY_VERSION', '1.14.8');
+define('AP_NMI_PAYMENT_GATEWAY_VERSION', '1.15.1');
 define('AP_NMI_PAYMENT_GATEWAY_PLUGIN_FILE', __FILE__);
 define('AP_NMI_PAYMENT_GATEWAY_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('AP_NMI_PAYMENT_GATEWAY_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -100,6 +100,25 @@ function apnmi_get_plugin_dir(): string{
 **/
 function apnmi_get_plugin_dir_url(): string {
 	return plugin_dir_url( __FILE__ );
+}
+
+/**
+ * Is the current request a secure context, as far as the browser is concerned?
+ *
+ * Apple Pay and Google Pay both need one — the Payment Request API does not exist
+ * over plain HTTP — so this gates the wallet attributes on the Collect.js tag and the
+ * Permissions-Policy header.
+ *
+ * is_ssl() inspects the connection PHP actually received, so it returns false on hosts
+ * that terminate TLS at a load balancer or CDN and forward over HTTP. On those sites
+ * the shopper is on HTTPS but wallets would silently disappear. The filter is the opt
+ * in: such a site can return true after validating its own proxy headers. Trusting
+ * HTTP_X_FORWARDED_PROTO here by default would let any client spoof it.
+ *
+ * @return bool
+ */
+function apnmi_is_secure_request(): bool {
+	return (bool) apply_filters( 'apnmi_is_secure_request', is_ssl() );
 }
 
 function run_apnmi()

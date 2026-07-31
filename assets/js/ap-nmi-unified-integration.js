@@ -15,6 +15,42 @@ jQuery(document).ready(function($) {
 
     console.log('Legacy checkout detected - initializing CollectJS integration');
 
+    // Tracing is a dependency of this script, but never let a missing trace helper
+    // break checkout — fall back to console-only.
+    var NMITrace = window.NMITrace || {
+        id: function () { return ''; },
+        log: function (stage, detail) { console.log('NMI ' + stage, detail || ''); },
+        warn: function (stage, detail) { console.warn('NMI ' + stage, detail || ''); },
+        error: function (stage, detail) { console.error('NMI ' + stage, detail || ''); },
+        flush: function () {}
+    };
+
+    /**
+     * Attach the trace id to the checkout form so process_payment logs under the same
+     * id as the browser entries. Idempotent.
+     *
+     * @return {void}
+     */
+    function nmiAttachTraceId() {
+        var field = (window.apNmiTraceConfig && window.apNmiTraceConfig.field) || 'ap_nmi_trace_id';
+        var $form = $('form.woocommerce-checkout');
+        if (!$form.length) {
+            return;
+        }
+        $form.find('[name="' + field + '"]').remove();
+        $('<input>').attr({ type: 'hidden', name: field, value: NMITrace.id() }).appendTo($form);
+    }
+
+    /**
+     * True once a wallet token has been captured and the form is being submitted for
+     * it. A wallet payment fills in no card iframes, so the card validation in the
+     * checkout_place_order handler would reject it with "Please enter a valid card
+     * number". The handler checks this flag and stands aside.
+     *
+     * @type {boolean}
+     */
+    var nmiWalletSubmitting = false;
+
     // Log NMI configuration for debugging (especially useful for Apple Pay/Google Pay issues)
     if (typeof window.NMI_Debug !== 'undefined') {
         console.log('NMI Configuration:', {
@@ -157,6 +193,81 @@ jQuery(document).ready(function($) {
     };
 
     /**
+     * Collect device data for 3DS authentication.
+     * Per latest NMI docs, helps prevent timeouts.
+     *
+     * Declared here at the top level of this closure, not nested inside
+     * nmiSubmitFormWithVaultAndThreeDS — both 3DS call sites live in sibling
+     * functions and a nested declaration is not in scope for them.
+     *
+     * @returns {Object} Device data fields
+     */
+    function nmiCollectDeviceData() {
+        let browserJavaEnabled = 'false';
+
+        // window.navigator.javaEnabled() is deprecated, use try/catch
+        try {
+            if (navigator.javaEnabled && typeof navigator.javaEnabled === 'function') {
+                browserJavaEnabled = navigator.javaEnabled() ? 'true' : 'false';
+            }
+        } catch(e) {
+            browserJavaEnabled = 'false';
+        }
+
+        return {
+            browserJavaEnabled: browserJavaEnabled,
+            browserJavascriptEnabled: 'true',
+            browserLanguage: window.navigator.language || window.navigator.userLanguage || 'en-US',
+            browserColorDepth: String(window.screen.colorDepth || '24'),
+            browserScreenHeight: String(window.screen.height || '768'),
+            browserScreenWidth: String(window.screen.width || '1024'),
+            browserTimeZone: String(new Date().getTimezoneOffset()),
+            deviceChannel: 'Browser'
+        };
+    }
+
+    /**
+     * Snapshot of the shared CollectJS state, attached to tokenization failures.
+     *
+     * CollectJS is a singleton and more than one gateway configures it (the card
+     * gateway here, the ACH gateway in the enterprise plugin). Config.update()
+     * deep-merges, so `fields` accumulate across gateways while scalars such as
+     * `callback`, `timeoutDuration` and `paymentSelector` are overwritten by
+     * whichever configure() ran last. When tokenization stalls, this snapshot shows
+     * who ended up owning the object and which iframes were actually messaged.
+     *
+     * @return {Object} Diagnostic snapshot.
+     */
+    function nmiTokenizationTrace() {
+        if (typeof CollectJS === 'undefined') {
+            return { collectJS: 'undefined' };
+        }
+
+        var trace = {
+            // Which fields CollectJS thinks it has, i.e. whether ACH fields merged in.
+            configuredFields: CollectJS.config ? Object.keys(CollectJS.config.fields || {}) : null,
+            // Which iframes startPaymentRequest() actually posts SaveMultipartToken to.
+            iframeKeys: CollectJS.iframes ? Object.keys(CollectJS.iframes) : null,
+            inlineIframesInDom: document.querySelectorAll('.CollectJSInlineIframe').length,
+            inSubmission: CollectJS.inSubmission,
+            timeoutDuration: CollectJS.config ? CollectJS.config.timeoutDuration : null,
+            paymentSelector: CollectJS.config ? CollectJS.config.paymentSelector : null,
+        };
+
+        // The iframe ignores SaveMultipartToken unless the token the parent sends
+        // matches the token in its own hidden input, so a divergence here is silent
+        // and looks exactly like a timeout.
+        if (CollectJS.iframes) {
+            trace.iframeTokens = {};
+            Object.keys(CollectJS.iframes).forEach(function (key) {
+                trace.iframeTokens[key] = CollectJS.iframes[key].contentWindow ? 'live' : 'detached';
+            });
+        }
+
+        return trace;
+    }
+
+    /**
      * Check if any configured wallet button container has been populated by
      * CollectJS (i.e. CollectJS injected an iframe / child element into it).
      * Shows the express wrapper when at least one button has rendered.
@@ -219,7 +330,7 @@ jQuery(document).ready(function($) {
             return;
         }
 
-        console.log('Initializing CollectJS for NMI credit card payment...');
+        NMITrace.log('legacy:configure:start');
 
         // Show loading indicator while CollectJS populates fields
         $('#ap-nmi-wc-fields-container .ap-nmi-fields-loader').show();
@@ -229,62 +340,37 @@ jQuery(document).ready(function($) {
         // Build wallet fields when enabled (must be in the same configure call as CC fields)
         var walletFields = {};
 
-        // Apple Pay: only include if the browser supports it (Safari on Apple device).
-        // No merchant ID gate — display is allowed during merchant approval review.
-        // When the account is approved and the ID is saved in settings, it activates
-        // automatically with no code changes needed.
-        var applePayAvailable = false;
-        if ( ap_nmi_params.apple_pay_enabled === 'yes' && $('#nmi-apple-pay-express').length > 0 ) {
-            try {
-                if (typeof window.ApplePaySession === 'undefined') {
-                    console.log('NMI: ApplePaySession is not available - not an Apple device or Safari browser');
-                } else if (typeof window.ApplePaySession.canMakePayments !== 'function') {
-                    console.log('NMI: ApplePaySession.canMakePayments() is not a function');
-                } else {
-                    applePayAvailable = window.ApplePaySession.canMakePayments();
-                    console.log('NMI: ApplePaySession.canMakePayments() returned:', applePayAvailable);
-                }
-            } catch (e) {
-                console.error('NMI: ApplePaySession.canMakePayments() error:', e.message, e);
-            }
-        } else {
-            if (ap_nmi_params.apple_pay_enabled !== 'yes') {
-                console.log('NMI: Apple Pay is disabled in settings');
-            }
-            if ($('#nmi-apple-pay-express').length === 0) {
-                console.log('NMI: Apple Pay express container (#nmi-apple-pay-express) not found in DOM');
-            }
-        }
-        if ( applePayAvailable ) {
-            var applePayConfig = {
+        // Wallet preconditions are checked before we hand anything to CollectJS —
+        // see assets/js/nmi-wallet-support.js. An unmet precondition is logged at
+        // console.info and the wallet is simply left out of the config; it must never
+        // affect the card fields or block checkout.
+        var walletSupport = window.NMIWalletSupport;
+
+        // Apple Pay: no merchant ID gate — display is allowed during merchant approval
+        // review. When the account is approved and the ID is saved in settings, it
+        // activates automatically with no code changes needed.
+        if ( walletSupport && walletSupport.canUseApplePay( ap_nmi_params.apple_pay_enabled === 'yes', '#nmi-apple-pay-express' ) ) {
+            // Key is camelCase `applePay` — CollectJS's Config accepts `applePay` and
+            // silently ignores anything else, so a lowercase `applepay` configures
+            // nothing at all.
+            walletFields.applePay = {
                 selector: '#nmi-apple-pay-express',
             };
-            walletFields.applepay = applePayConfig;
-            console.log('NMI: Including Apple Pay express field in CollectJS config', {
-                selector: applePayConfig.selector,
-                selectorFound: $('#nmi-apple-pay-express').length > 0,
-                collectJSLoaded: typeof CollectJS !== 'undefined',
-                isSecureContext: window.isSecureContext,
-                applePaySessionAvailable: typeof window.ApplePaySession !== 'undefined',
-            });
-        } else if (ap_nmi_params.apple_pay_enabled === 'yes') {
-            console.log('NMI: Apple Pay not supported in this browser — button hidden');
+            console.log('NMI: Including Apple Pay express field in CollectJS config');
         }
 
         // Google Pay: use the express container rendered above payment methods.
         // No merchant ID required during Google Pay merchant approval review.
-        if (
-            ap_nmi_params.google_pay_enabled === 'yes' &&
-            $('#nmi-google-pay-express').length > 0
-        ) {
+        if ( walletSupport && walletSupport.canUseGooglePay( ap_nmi_params.google_pay_enabled === 'yes', '#nmi-google-pay-express' ) ) {
+            // Only the properties in CollectJS's googlePay allowlist may appear here.
+            // An unknown key makes configure() throw, which aborts before the card
+            // iframes are built. The merchant ID is not one of them — CollectJS takes
+            // it from the tokenization response.
             walletFields.googlePay = {
                 selector:    '#nmi-google-pay-express',
                 buttonType:  'buy',
                 buttonColor: 'black',
             };
-            if (ap_nmi_params.google_merchant_id) {
-                walletFields.googlePay.googlePayMerchantId = ap_nmi_params.google_merchant_id;
-            }
             console.log('NMI: Including Google Pay express field in CollectJS config');
         }
 
@@ -333,12 +419,14 @@ jQuery(document).ready(function($) {
             fields: Object.assign({}, collectJsCcFields, fields),
             timeoutDuration: 10000,
             timeoutCallback: function () {
-                console.log("The tokenization didn't respond in the expected timeframe.");
+                // console.error, not console.log: this is a real checkout failure and
+                // must be visible when the console is filtered to errors.
+                NMITrace.error('legacy:tokenize:timeout', nmiTokenizationTrace());
                 nmiShowError('Payment processing timeout. Please try again.');
                 nmiEnableSubmitButton();
             },
             fieldsAvailableCallback: function () {
-                console.log("Collect.js loaded the CC fields onto the form");
+                NMITrace.log('legacy:fieldsAvailable', nmiTokenizationTrace());
                 // Hide loading indicator
                 $('#ap-nmi-wc-fields-container .ap-nmi-fields-loader').hide();
                 // Reset validation when fields are available
@@ -352,23 +440,51 @@ jQuery(document).ready(function($) {
                 nmiCheckWalletButtons(walletFields);
             },
             callback: function(response) {
-                // Wallet payment — submit the checkout form with the wallet token
-                if (response.wallet || (!response.card && (ap_nmi_params.apple_pay_enabled === 'yes' || ap_nmi_params.google_pay_enabled === 'yes'))) {
-                    var walletType = response.wallet || 'unknown';
+                // Wallet payment — submit the checkout form with the wallet token.
+                //
+                // Dispatch on tokenType, NOT on response.wallet. CollectJS always sets
+                // response.wallet, and for a card tokenization it is an object of null
+                // fields — always truthy. Testing it sent every card payment down this
+                // branch, which re-submitted the form mid-callback and left the
+                // tokenization to time out.
+                NMITrace.log('legacy:token:received', {
+                    tokenType: response.tokenType,
+                    hasToken: !!response.token,
+                    cardType: response.card && response.card.type,
+                    isWallet: !!(window.NMIWalletSupport && window.NMIWalletSupport.isWalletResponse(response))
+                });
+
+                if (window.NMIWalletSupport && window.NMIWalletSupport.isWalletResponse(response)) {
+                    var walletType = window.NMIWalletSupport.walletTypeOf(response);
                     console.log('NMI: Wallet token received for', walletType);
                     var $form = $('form.woocommerce-checkout');
                     $form.find('[name="payment_token"]').remove();
                     $form.find('[name="nmi_wallet_type"]').remove();
                     $('<input>').attr({ type: 'hidden', name: 'payment_token',  value: response.token   }).appendTo($form);
                     $('<input>').attr({ type: 'hidden', name: 'nmi_wallet_type', value: walletType }).appendTo($form);
-                    $form.submit();
+                    nmiAttachTraceId();
+
+                    // Detach checkout_place_order before submitting, exactly as the card
+                    // path does in nmiSubmitFormWithToken. A plain $form.submit() runs
+                    // WooCommerce's submit handler, which re-fires checkout_place_order
+                    // and re-enters our handler below; that handler then validates the
+                    // card iframes, which a wallet payment never fills in, and aborts
+                    // with "Please enter a valid card number". The flag is belt-and-braces
+                    // in case another script has re-bound the event.
+                    nmiWalletSubmitting = true;
+                    $form.off('checkout_place_order').submit();
                     return;
                 }
 
-                // CC payment (existing logic)
-                let restricted_card = ap_nmi_params.gateway_config.restricted_card_types;
-                
-                if (restricted_card.includes(response.card.type)) {
+                // CC payment (existing logic).
+                // Anything that throws in here leaves CollectJS permanently wedged:
+                // MessageHandler sets inSubmission = false and calls retokenize() only
+                // *after* this callback returns, so a throw means every later Place Order
+                // is a silent no-op. Keep this branch defensive.
+                var restricted_card = (ap_nmi_params.gateway_config && ap_nmi_params.gateway_config.restricted_card_types) || '';
+                var cardType = response.card && response.card.type;
+
+                if (cardType && restricted_card.includes(cardType)) {
                     nmiShowError('This card type is not accepted.');
                     nmiEnableSubmitButton();
                     return;
@@ -401,23 +517,36 @@ jQuery(document).ready(function($) {
         }
 
         // Also guard the synchronous path (some environments throw sync).
+        //
+        // Any throw out of configure() must degrade to card-only rather than propagate:
+        // Config.update() assigns the new config *before* it validates, so a rejected
+        // config leaves CollectJS mutated but skips buildInlineIframes() — mutated
+        // config and no card fields at all. Card-only is always the safe fallback.
         try {
             doCollectJSConfigure(walletFields);
         } catch (e) {
-            if ( Object.keys(walletFields).length > 0 &&
-                 e.message && e.message.indexOf('PaymentRequestAbstraction') !== -1 ) {
-                console.warn('NMI: Wallet PaymentRequest init failed (sync). Retrying CC-only.');
-                $('.nmi-wallet-express-wrap').hide();
-                walletFields = {};
+            if ( Object.keys(walletFields).length === 0 ) {
+                // Nothing left to drop — the card config itself is bad.
+                console.error('NMI: CollectJS.configure() failed with CC fields only:', e.message, e);
+                nmiShowError('The payment form failed to load. Please reload the page.');
+                return;
+            }
+
+            console.warn('NMI: CollectJS.configure() rejected the wallet fields, retrying CC-only:', e.message);
+            $('.nmi-wallet-express-wrap').hide();
+            walletFields = {};
+            try {
                 doCollectJSConfigure({});
-            } else {
-                throw e;
+            } catch (ccError) {
+                console.error('NMI: CC-only CollectJS.configure() also failed:', ccError.message, ccError);
+                nmiShowError('The payment form failed to load. Please reload the page.');
+                return;
             }
         }
 
         // Mark as configured
         window.nmiCollectJSConfigured = true;
-        console.log('CollectJS configuration complete for credit card + wallets:', Object.keys(walletFields));
+        NMITrace.log('legacy:configure:done', { wallets: Object.keys(walletFields), state: nmiTokenizationTrace() });
 
         // Poll for wallet button render (CollectJS renders wallet buttons asynchronously
         // and independently from the CC fieldsAvailableCallback).
@@ -432,14 +561,13 @@ jQuery(document).ready(function($) {
                 if (found || walletPollCount >= walletPollMax) {
                     clearInterval(walletPollId);
                     if (!found) {
-                        console.error('NMI: Wallet buttons did not render after 15 seconds (' + walletPollCount + ' checks). Possible reasons:');
-                        console.error('  - NMI tokenization key not authorized for Apple Pay / Google Pay');
-                        console.error('  - Browser/device does not support the wallet payment method');
-                        console.error('  - HTTPS required but not available');
-                        console.error('  - Apple Pay: Not on Safari or Apple device');
-                        console.error('  - Apple Pay: Merchant ID not configured or not approved by Apple');
-                        console.error('  - Google Pay: Merchant ID not configured or not approved by Google');
-                        console.error('Configured wallet fields:', walletFields);
+                        // console.info, not console.error: a wallet button that never
+                        // renders is a diagnostic, not a checkout failure. Card payments
+                        // are unaffected either way.
+                        console.info('NMI wallets: buttons did not render after 15 seconds (' + walletPollCount + ' checks). ' +
+                            'Usual causes: the tokenization key is not authorised for Apple Pay / Google Pay, ' +
+                            'the NMI account is still in merchant approval review, or the domain is not ' +
+                            'registered in the NMI Apple Pay settings.', walletFields);
                     } else {
                         console.log('NMI: Wallet button(s) successfully rendered after', walletPollCount, 'checks (~' + (walletPollCount * 0.3) + 's)');
                     }
@@ -851,6 +979,18 @@ jQuery(document).ready(function($) {
         
         // Override WooCommerce form submission for our gateway
         $('form.woocommerce-checkout').on('checkout_place_order', function(e) {
+            // A wallet token is already on the form — let WooCommerce submit it as-is.
+            // Card validation below would reject it: a wallet payment fills in none of
+            // the card iframes.
+            if (nmiWalletSubmitting) {
+                NMITrace.log('legacy:place_order:wallet_passthrough');
+                return true;
+            }
+
+            nmiAttachTraceId();
+            NMITrace.log('legacy:place_order:clicked', {
+                method: $('input[name="payment_method"]:checked').val()
+            });
             // Only intercept if our gateway is selected
             if ($('input[name="payment_method"]:checked').val() === ap_nmi_params.ap_nmi_gateway_id) {
                 e.preventDefault();
@@ -861,7 +1001,11 @@ jQuery(document).ready(function($) {
                 $('.woocommerce-error, .nmi-error-message').remove();
                 
                 // Check if using saved payment method
-                var useSavedCard = $('input[name="use_save_payment_method"]:checked').val() === '1';
+                // Scoped to the CC saved-card block. WooCommerce renders every gateway's
+                // payment box into the same <form>, and the ACH gateway historically used
+                // the same field name, which made the two a single radio group. The
+                // toggling code around here is already scoped the same way.
+                var useSavedCard = $('.ap-nmi-saved-card-selection input[name="use_save_payment_method"]:checked').val() === '1';
                 
                 if (useSavedCard) {
                     console.log('Using saved payment method');
@@ -898,6 +1042,7 @@ jQuery(document).ready(function($) {
                 // Using new card - check if CollectJS iframes are loaded
                 var iframes = $('.CollectJSInlineIframe');
                 if (iframes.length < 3) {
+                    NMITrace.error('legacy:tokenize:fields_not_ready', nmiTokenizationTrace());
                     nmiShowError('Payment form is not ready. Please refresh the page and try again.');
                     return false;
                 }
@@ -928,8 +1073,8 @@ jQuery(document).ready(function($) {
                 // Disable submit button to prevent multiple submissions
                 $('#place_order').prop('disabled', true).text('Processing...');
                 
-                console.log('All fields validated, generating token...');
-                
+                NMITrace.log('legacy:tokenize:start', nmiTokenizationTrace());
+
                 // All fields are valid, proceed with tokenization
                 try {
                     CollectJS.startPaymentRequest();
@@ -1057,37 +1202,7 @@ jQuery(document).ready(function($) {
                     }
                 });
             }
-            
 
-        /**
-         * Collect device data for 3DS authentication
-         * Per latest NMI docs, helps prevent timeouts
-         * 
-         * @returns {Object} Device data fields
-         */
-        function nmiCollectDeviceData() {
-            let browserJavaEnabled = 'false';
-            
-            // window.navigator.javaEnabled() is deprecated, use try/catch
-            try {
-                if (navigator.javaEnabled && typeof navigator.javaEnabled === 'function') {
-                    browserJavaEnabled = navigator.javaEnabled() ? 'true' : 'false';
-                }
-            } catch(e) {
-                browserJavaEnabled = 'false';
-            }
-            
-            return {
-                browserJavaEnabled: browserJavaEnabled,
-                browserJavascriptEnabled: 'true',
-                browserLanguage: window.navigator.language || window.navigator.userLanguage || 'en-US',
-                browserColorDepth: String(window.screen.colorDepth || '24'),
-                browserScreenHeight: String(window.screen.height || '768'),
-                browserScreenWidth: String(window.screen.width || '1024'),
-                browserTimeZone: String(new Date().getTimezoneOffset()),
-                deviceChannel: 'Browser'
-            };
-        }
             // Submit the form
             form.off('checkout_place_order').submit();
         };
