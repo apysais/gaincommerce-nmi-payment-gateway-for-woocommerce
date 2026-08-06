@@ -104,9 +104,14 @@ add_action('wp_enqueue_scripts', function(){
 			'ajax_url'            => admin_url('admin-ajax.php'),
 			'nonce'               => wp_create_nonce('ap_nmi_nonce'),
 			'is_blocks_checkout'  => has_block('woocommerce/checkout') ? 'yes' : 'no',
-			'ap_nmi_gateway_id'   => AP_NMI_WC_GATEWAY_ID,
-			'gateway_config'      => $gateway_settings,
-			'is_checkout_page'    => is_checkout() ? 1 : 0,
+			'ap_nmi_gateway_id'      => AP_NMI_WC_GATEWAY_ID,
+			// Only the fields JS actually reads — never pass the full settings array (exposes private_key).
+			// Normalized to a JSON list: this reads the raw option, which WooCommerce stores as ''
+			// when the multiselect has nothing selected, whereas the blocks checkout gets [] via
+			// WC_Payment_Gateway::get_option(). Without the cast the two checkouts hand JS different
+			// types and `.includes()` silently switches from exact array matching to substring matching.
+			'restricted_card_types'  => array_values( array_filter( (array) ( $gateway_settings['restricted_card_types'] ?? [] ) ) ),
+			'is_checkout_page'       => is_checkout() ? 1 : 0,
 			// Digital wallet params — used by the unified CollectJS configure call
 			'apple_pay_enabled'   => class_exists('APNMIPaymentGateway\Settings\Digital_Wallet_Settings')
 				&& \APNMIPaymentGateway\Settings\Digital_Wallet_Settings::is_apple_pay_enabled() ? 'yes' : 'no',

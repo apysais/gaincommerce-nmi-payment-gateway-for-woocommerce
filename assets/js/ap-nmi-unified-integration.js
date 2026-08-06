@@ -481,7 +481,7 @@ jQuery(document).ready(function($) {
                 // MessageHandler sets inSubmission = false and calls retokenize() only
                 // *after* this callback returns, so a throw means every later Place Order
                 // is a silent no-op. Keep this branch defensive.
-                var restricted_card = (ap_nmi_params.gateway_config && ap_nmi_params.gateway_config.restricted_card_types) || '';
+                var restricted_card = ap_nmi_params.restricted_card_types || '';
                 var cardType = response.card && response.card.type;
 
                 if (cardType && restricted_card.includes(cardType)) {
@@ -705,14 +705,6 @@ jQuery(document).ready(function($) {
         console.log('NMI: Eagerly initializing CollectJS on page load...');
         initializeCollectJS();
     });
-
-    window.checkValidCardType = function(response) {
-        let restricted_card = ap_nmi_params.gateway_config.restricted_card_types;
-        if (restricted_card.includes(response.card.type)) {
-            nmiShowError('This card type is not accepted.');
-            return;
-        }
-    };
 
     // Shared token response handler
     window.nmiHandleTokenResponse = function(response) {

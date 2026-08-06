@@ -3,7 +3,7 @@ Contributors: allan.casilum, gaincommerce
 Tags: nmi, woocommerce, payment gateway, credit card, checkout
 Requires at least: 6.8
 Tested up to: 7.0.1
-Stable tag: 1.15.1
+Stable tag: 1.16.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Requires Plugins: woocommerce
@@ -94,6 +94,9 @@ Visit <a href="https://www.gaincommerce.com/support" target="_blank">gaincommerc
 4. Dynamic Descriptor settings in WooCommerce (when enabled in NMI)
 
 == Changelog ==
+
+= 1.16.1 =
+* Fix issue on JS checkout both legacy and block.
 
 = 1.15.1 =
 * Fix issue in NMI timeout

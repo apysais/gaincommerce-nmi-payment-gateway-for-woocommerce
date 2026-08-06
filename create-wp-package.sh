@@ -326,6 +326,11 @@ if unzip -l "$ZIP_FILE" | grep -q "tests/"; then
     VALIDATION_PASSED=false
 fi
 
+if unzip -l "$ZIP_FILE" | grep -q "doc/"; then
+    print_error "doc directory found in package!"
+    VALIDATION_PASSED=false
+fi
+
 if unzip -l "$ZIP_FILE" | grep -q "phpunit.xml"; then
     print_error "phpunit.xml found in package!"
     VALIDATION_PASSED=false
