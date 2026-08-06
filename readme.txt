@@ -97,6 +97,7 @@ Visit <a href="https://www.gaincommerce.com/support" target="_blank">gaincommerc
 
 = 1.16.1 =
 * Fix issue on JS checkout both legacy and block.
+* Maintenance
 
 = 1.15.1 =
 * Fix issue in NMI timeout
